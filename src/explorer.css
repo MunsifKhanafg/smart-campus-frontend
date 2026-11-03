@@ -1,0 +1,42 @@
+/* Drill-down screens: Department -> Semester -> Classes */
+.crumbs { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; font-size: .85rem; color: var(--muted); margin-bottom: .75rem; }
+.crumbs a { color: var(--primary); text-decoration: none; font-weight: 600; }
+.crumbs a:hover { text-decoration: underline; }
+
+.hero { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; padding: 1.4rem 1.5rem; border-radius: var(--radius); color: #fff; margin-bottom: 1rem; background: linear-gradient(135deg, var(--primary-dark), var(--primary-light) 60%, var(--accent)); box-shadow: var(--shadow); }
+.hero h1 { color: #fff; margin: 0; }
+.hero p { margin: .2rem 0 0; opacity: .9; }
+.hero .grow { flex: 1; min-width: 220px; }
+.hero .badge { background: rgba(255, 255, 255, .22); color: #fff; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+.tile { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.1rem; box-shadow: var(--shadow); display: flex; align-items: center; gap: .9rem; }
+.tile .ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.3rem; background: var(--primary-soft); }
+.tile.teal .ico { background: var(--accent-soft); }
+.tile.amber .ico { background: var(--warn-soft); }
+.tile.rose .ico { background: #ffe4e6; }
+.tile b { display: block; font-size: 1.5rem; line-height: 1.1; }
+.tile span { color: var(--muted); font-size: .8rem; }
+
+.dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1.1rem; }
+.dept-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.2rem; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column; gap: .6rem; transition: transform .15s, box-shadow .15s, border-color .15s; border-top: 4px solid var(--primary); }
+.dept-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); border-color: var(--primary-light); }
+.dept-card:nth-child(4n+2) { border-top-color: var(--accent); }
+.dept-card:nth-child(4n+3) { border-top-color: var(--warn); }
+.dept-card:nth-child(4n+4) { border-top-color: #e11d48; }
+.dept-card h3 { margin: 0; font-size: 1.1rem; }
+.dept-card .code { display: inline-block; font-weight: 700; font-size: .72rem; letter-spacing: .06em; background: var(--primary-soft); color: var(--primary-dark); padding: .15rem .55rem; border-radius: 6px; }
+.dept-card .meta { color: var(--muted); font-size: .85rem; }
+.dept-card .mini { display: flex; gap: 1rem; margin-top: auto; padding-top: .6rem; border-top: 1px dashed var(--border); font-size: .8rem; color: var(--muted); }
+.dept-card .mini b { color: var(--text); font-size: 1rem; display: block; }
+.dept-tools { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .4rem; }
+
+.slot-chip { display: inline-block; background: var(--primary-soft); color: var(--primary-dark); border-radius: 8px; padding: .2rem .55rem; font-size: .78rem; margin: 0 .3rem .3rem 0; white-space: nowrap; }
+.slot-chip b { text-transform: capitalize; }
+.pill-bar { height: 8px; border-radius: 99px; background: #e2e8f0; overflow: hidden; min-width: 90px; }
+.pill-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #34d399); }
+.pill-bar i.low { background: linear-gradient(90deg, #f43f5e, #fb7185); }
+.sem-card { cursor: pointer; }
+.empty-state { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
+.empty-state .big { font-size: 2.2rem; }
+.row-link { cursor: pointer; }
