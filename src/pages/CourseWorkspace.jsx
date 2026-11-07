@@ -40,7 +40,7 @@ export default function CourseWorkspace() {
   if (!isStudent) tabs.push(['marks', 'Exam marks']);
   if (role === 'student' || role === 'teacher') tabs.push(['assistant', 'AI Assistant']);
   if (!isStudent) tabs.push(['performance', 'Student support']);
-  tabs.push(['about', 'Outline']);
+  tabs.push(['about', 'Course contents']);
 
   return (
     <>
@@ -64,9 +64,17 @@ export default function CourseWorkspace() {
           {tab === 'performance' && !isStudent && <PerformanceTab courseId={courseId} />}
           {tab === 'about' && (
             <div className="card">
-              <p>{course.description || <span className="muted">No description.</span>}</p>
-              <h4>Course outline</h4>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{course.outline || <span className="muted">No outline yet.</span>}</p>
+              <table className="mb">
+                <tbody>
+                  <tr><td className="muted">Subject</td><td><b>{course.title}</b> ({course.code})</td></tr>
+                  <tr><td className="muted">Credit hours</td><td>{course.creditHours}</td></tr>
+                  <tr><td className="muted">Semester</td><td>{course.semester?.name} · Section {course.section}</td></tr>
+                  {course.teacher?.name && <tr><td className="muted">Teacher</td><td>{course.teacher.name}</td></tr>}
+                </tbody>
+              </table>
+              {course.description && <p>{course.description}</p>}
+              <h4>Course contents</h4>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{course.outline || <span className="muted">{isStudent ? 'No course contents have been added yet.' : 'The curriculum has no contents for this subject. Ask your HOD to add them.'}</span>}</p>
               <p className="muted small">{fmtDate(course.startDate)} to {fmtDate(course.endDate)}</p>
             </div>
           )}

@@ -19,6 +19,7 @@ const slice = createSlice({
     website: '',
     officeHours: '',
     currentAcademicYear: '',
+    admissionPortal: null, // open / dates / external link, from the public settings
     loaded: false,
   },
   reducers: {

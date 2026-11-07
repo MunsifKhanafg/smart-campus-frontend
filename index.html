@@ -3,7 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart Campus</title>
+    <meta name="theme-color" content="#17707f" />
+    <title>ILMSphere — Nurturing knowledge, connecting campus</title>
+    <link rel="icon" type="image/png" href="/brand/favicon.png" />
+    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <script>
+      // Runs before the page is drawn: apply the saved light / night choice (or the device setting) at once.
+      (function () {
+        try {
+          var saved = localStorage.getItem('smartcampus-theme');
+          var dark = saved === 'dark' || (saved !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+          if (dark) document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0a0f1e');
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

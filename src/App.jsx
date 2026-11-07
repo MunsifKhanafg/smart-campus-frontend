@@ -7,6 +7,7 @@ import { TOKEN_KEY } from './api/axios.js';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Layout from './components/Layout.jsx';
 import Login from './pages/Login.jsx';
+import Home from './pages/Home.jsx';
 import Contact from './pages/Contact.jsx';
 import PublicResult from './pages/PublicResult.jsx';
 import ChangePassword from './pages/ChangePassword.jsx';
@@ -33,6 +34,7 @@ import MyPerformance from './pages/MyPerformance.jsx';
 import PayMock from './pages/PayMock.jsx';
 import PayReturn from './pages/PayReturn.jsx';
 import FeeNotices from './pages/FeeNotices.jsx';
+import PromotionFees from './pages/PromotionFees.jsx';
 import FinanceDesk from './pages/FinanceDesk.jsx';
 import Documents from './pages/Documents.jsx';
 import Admissions from './pages/Admissions.jsx';
@@ -42,6 +44,22 @@ import DepartmentDetail from './pages/DepartmentDetail.jsx';
 import SemesterDetail from './pages/SemesterDetail.jsx';
 import Attendance from './pages/Attendance.jsx';
 import Teachers from './pages/Teachers.jsx';
+import Account from './pages/Account.jsx';
+import Curriculum from './pages/Curriculum.jsx';
+import TeachingBoard from './pages/TeachingBoard.jsx';
+import TeacherDetail from './pages/TeacherDetail.jsx';
+import StudentsHub from './pages/StudentsHub.jsx';
+import FinanceOverview from './pages/FinanceOverview.jsx';
+import Apply from './pages/Apply.jsx';
+import TrackApplication from './pages/TrackApplication.jsx';
+import MeritList from './pages/MeritList.jsx';
+import Applications from './pages/Applications.jsx';
+
+// The University Head browses students by department boxes; an HOD uses the full management page.
+function StudentsEntry() {
+  const role = useSelector((s) => s.auth.user.role);
+  return role === 'university_head' ? <StudentsHub /> : <Students />;
+}
 
 // Notification links point to /timetable. Only the HOD edits timetables; everybody else is sent to their own schedule.
 function TimetableEntry() {
@@ -67,9 +85,14 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/check-result" element={<PublicResult />} />
+      {/* New-student admission portal: no login needed */}
+      <Route path="/apply" element={<Apply />} />
+      <Route path="/track-application" element={<TrackApplication />} />
+      <Route path="/merit-list" element={<MeritList />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/change-password" element={<ChangePassword />} />
@@ -84,6 +107,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/account" element={<Account />} />
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/timetable" element={<TimetableEntry />} />
 
@@ -93,11 +117,15 @@ export default function App() {
             <Route path="/departments/:deptId" element={<DepartmentDetail />} />
             <Route path="/departments/:deptId/semesters/:semId" element={<SemesterDetail />} />
             <Route path="/teachers" element={<Teachers />} />
+            <Route path="/teachers/:teacherId" element={<TeacherDetail />} />
+            <Route path="/curriculum" element={<Curriculum />} />
+            <Route path="/assign-teachers" element={<TeachingBoard />} />
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/users" element={<Users />} />
             <Route path="/semesters" element={<Semesters />} />
-            <Route path="/students" element={<Students />} />
+            <Route path="/students" element={<StudentsEntry />} />
             <Route path="/students/:id/record" element={<StudentRecord />} />
+            <Route path="/applications" element={<Applications />} />
             <Route path="/insights" element={<Insights />} />
           </Route>
 
@@ -125,10 +153,12 @@ export default function App() {
           {/* Fees, documents, admissions and complaints */}
           <Route element={<ProtectedRoute roles={[HEAD, HOD, FIN]} />}>
             <Route path="/fee-notices" element={<FeeNotices />} />
+            <Route path="/promotion-fees" element={<PromotionFees />} />
             <Route path="/admissions" element={<Admissions />} />
           </Route>
           <Route element={<ProtectedRoute roles={[HEAD, FIN]} />}>
             <Route path="/finance" element={<FinanceDesk />} />
+            <Route path="/finance-overview" element={<FinanceOverview />} />
           </Route>
           <Route element={<ProtectedRoute roles={[STU, HEAD, HOD]} />}>
             <Route path="/documents" element={<Documents />} />
@@ -143,7 +173,7 @@ export default function App() {
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

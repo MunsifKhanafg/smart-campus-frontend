@@ -1,0 +1,56 @@
+/* ==========================================================================================
+   Logo effects (components/LogoPlate.jsx, LogoEffects.jsx, logoTheme.js). Loaded last from main.jsx.
+   1) the logo plate   2) spinning watermark   3) top-bar switches   4) big panels follow the logo colours
+   ========================================================================================== */
+
+/* ---- 1) the logo plate ----
+   The logo always sits on a white plate with a soft ring, so it is readable on dark menus, coloured heroes and
+   photos alike, whatever colours the logo itself has. The plate follows the logo's own shape (wide or square). */
+.logo-plate { display: inline-flex; align-items: center; justify-content: center; flex: none; max-width: min(100%, 340px); box-sizing: border-box;
+  padding: 5px 10px; border-radius: 14px; background: #fff; box-shadow: 0 0 0 2px rgba(255, 255, 255, .55), 0 6px 18px rgba(0, 0, 0, .28); }
+.logo-plate img, .logo-plate svg { display: block; height: 100%; width: auto; max-width: 100%; object-fit: contain; background: transparent; border-radius: 0; }
+.brand .logo-plate { padding: 3px 7px; border-radius: 12px; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .5), 0 3px 10px rgba(0, 0, 0, .22); }
+.brand img { background: transparent; }
+
+/* sign-in page: the old translucent box around the logo is gone, the plate is the box */
+.ln-logo, .ln-logo.small { width: auto; height: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; margin-bottom: 1rem; }
+.ln-logo.small { margin: 0 auto .5rem; }
+@media (max-height: 760px) { .ln-logo .logo-plate { height: 92px !important; } }
+
+/* ---- 2) spinning watermark in the middle of the screen ----
+   The layer blends with the page (multiply in day mode, screen in night mode), so the white box of a logo file
+   disappears and only the artwork remains. It never takes clicks and it is hidden when printing. */
+.wm { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; user-select: none; z-index: 2; mix-blend-mode: multiply; }
+.wm img { width: min(64vmin, 600px); height: auto; opacity: .08; animation: wm-spin 80s linear infinite; will-change: transform; }
+html[data-theme='dark'] .wm { mix-blend-mode: screen; }
+html[data-theme='dark'] .wm img { opacity: .10; filter: invert(1) hue-rotate(180deg) brightness(1.2); }
+@keyframes wm-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .wm img { animation: none; } }
+@media print { .wm { display: none; } }
+
+/* ---- 3) top-bar switches ---- */
+.logo-toggle { flex: none; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border-radius: 50%; cursor: pointer; font-size: .95rem; line-height: 1;
+  background: var(--surface); border: 1px solid var(--border); opacity: .55; filter: grayscale(1); transition: opacity .15s, filter .15s, border-color .15s, box-shadow .15s; }
+.logo-toggle:hover { opacity: .9; }
+.logo-toggle.on { opacity: 1; filter: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px var(--ring); }
+
+/* ---- 4) the big dark panels and buttons were hard-coded; now they use the colours taken from the logo ---- */
+.ln-side, .hm-hero { background: linear-gradient(150deg, var(--sidebar-from) 0%, var(--sidebar-to) 55%, var(--primary) 135%); }
+.ln-orb.o1, .hm-blob.b1 { background: var(--primary-light); }
+.ln-orb.o2, .hm-blob.b2 { background: var(--accent); }
+.ln-orb.o3, .hm-blob.b3 { background: var(--primary); }
+.ln-campus { color: var(--sidebar-active); }
+.ln-back, .ln-tag, .ln-feature small { color: var(--sidebar-text); }
+.hm-grad { background: linear-gradient(90deg, var(--sidebar-active), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hm-btn-solid { background: linear-gradient(135deg, var(--primary-dark), var(--primary) 55%, var(--primary-light)); box-shadow: 0 8px 22px var(--btn-shadow); }
+.hm-btn-light { color: var(--primary-dark); }
+.ln-submit { background: linear-gradient(135deg, var(--primary-dark), var(--primary-light)); box-shadow: 0 10px 24px var(--btn-shadow); }
+.hm-cta-band, .hm-foot { background: linear-gradient(135deg, var(--sidebar-from), var(--sidebar-to)); }
+.hm-card-top span { background: var(--primary-soft); color: var(--primary); }
+.ln-main { background: transparent; }
+@media (max-width: 900px) { .ln-main { background: linear-gradient(160deg, var(--primary-soft), var(--bg)); } }
+
+/* a few other hard-coded gradients now follow the theme colours too */
+.acc-hero { background: linear-gradient(120deg, var(--sidebar-to) 0%, var(--primary) 55%, var(--accent) 100%); }
+.acc-stat:nth-child(1) { background: linear-gradient(135deg, var(--primary-dark), var(--primary-light)); }
+.acc-stat:nth-child(2) { background: linear-gradient(135deg, var(--accent), var(--primary-light)); }

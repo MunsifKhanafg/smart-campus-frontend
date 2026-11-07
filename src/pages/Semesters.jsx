@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import api, { errorMessage } from '../api/axios.js';
 import { useConfirm } from '../components/ConfirmModal.jsx';
+import PromotePanel from '../components/PromotePanel.jsx';
 
 const day = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 const EMPTY = { name: '', number: 1, academicYear: '', startDate: '', endDate: '' };
@@ -20,6 +21,9 @@ export default function Semesters() {
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [editing, setEditing] = useState(null); // null | 'new' | semester
   const [form, setForm] = useState(EMPTY);
+  const [promoting, setPromoting] = useState(null); // semester whose students are being promoted
+
+  const ended = (s) => s.status === 'completed' || new Date(s.endDate) <= new Date();
 
   const flash = (type, text) => setMsg({ type, text });
 
@@ -160,6 +164,8 @@ export default function Semesters() {
         </form>
       )}
 
+      {promoting && isHod && <PromotePanel semester={promoting} onDone={load} onCancel={() => setPromoting(null)} />}
+
       <div className="card table-wrap">
         <table>
           <thead>
@@ -179,6 +185,16 @@ export default function Semesters() {
                 {isHod && (
                   <td className="actions">
                     {s.status !== 'archived' && <button className="btn btn-small" onClick={() => openForm(s)}>Edit</button>}
+                    {s.status !== 'archived' && (
+                      <button
+                        className="btn btn-small"
+                        disabled={!ended(s)}
+                        title={ended(s) ? 'Move students to the next semester' : 'Available once the semester has ended'}
+                        onClick={() => { setPromoting(s); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      >
+                        Promote
+                      </button>
+                    )}
                     {s.status !== 'archived' && (
                       <select style={{ width: 'auto' }} value={s.status} onChange={(e) => changeStatus(s, e.target.value)}>
                         {STATUSES.map((x) => <option key={x} value={x}>{x}</option>)}

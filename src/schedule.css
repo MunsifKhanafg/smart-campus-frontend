@@ -1,0 +1,84 @@
+/* Teacher dashboard + weekly timetable. Colours come from --c1/--c2 set per subject (components/palette.js). */
+
+/* ---------- weekly timetable ---------- */
+.wt-scroll { width: 100%; overflow-x: auto; padding-bottom: .3rem; }
+/* All days sit side by side inside the window (Mon-Sat), so the whole week is visible without scrolling down.
+   On a phone the columns keep a minimum width and the week scrolls sideways instead of stacking. */
+.wt { display: grid; grid-template-columns: repeat(var(--days, 6), minmax(0, 1fr)); gap: .5rem; align-items: start; min-width: calc(var(--days, 6) * 118px); }
+.wt-day { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); min-width: 0; }
+.wt-day.today { box-shadow: 0 0 0 2px var(--primary), var(--shadow-hover); }
+.wt-head { display: flex; align-items: center; justify-content: space-between; gap: .3rem; padding: .45rem .6rem; font-size: .85rem; font-weight: 700; text-transform: capitalize; color: #3730a3; background: linear-gradient(90deg, #eef0ff, #e6f7f5); border-bottom: 1px solid var(--border); }
+.wt-head small { background: #fff; border-radius: 99px; min-width: 22px; text-align: center; font-size: .72rem; color: var(--muted); padding: 0 .4rem; }
+.wt-head em { font-style: normal; font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; background: rgba(255, 255, 255, .25); padding: .1rem .5rem; border-radius: 99px; }
+.wt-day.today .wt-head { color: #fff; background: linear-gradient(90deg, #4f46e5, #0d9488); }
+.wt-body { padding: .4rem; display: flex; flex-direction: column; gap: .4rem; min-height: 60px; }
+.wt-slot { position: relative; color: #fff; border-radius: 9px; padding: .4rem .5rem; min-width: 0; background: linear-gradient(135deg, var(--c1), var(--c2)); box-shadow: 0 3px 8px color-mix(in srgb, var(--c2) 30%, transparent); }
+.wt-slot.done { opacity: .55; }
+.wt-slot.live { box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--c1), 0 8px 18px color-mix(in srgb, var(--c2) 40%, transparent); }
+.wt-time { font-weight: 700; font-size: .68rem; display: flex; align-items: center; justify-content: space-between; gap: .3rem; opacity: .95; white-space: nowrap; }
+.wt-live { background: #fff; color: #dc2626; font-size: .6rem; font-weight: 800; letter-spacing: .06em; border-radius: 99px; padding: 0 .4rem; animation: wt-pulse 1.4s infinite; }
+@keyframes wt-pulse { 50% { opacity: .45; } }
+.wt-code { font-weight: 800; font-size: .82rem; margin-top: .15rem; letter-spacing: .02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wt-title { font-size: .7rem; line-height: 1.2; opacity: .95; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.wt-meta { display: flex; flex-direction: column; gap: .05rem; margin-top: .3rem; padding-top: .25rem; border-top: 1px solid rgba(255, 255, 255, .3); font-size: .65rem; opacity: .95; }
+.wt-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wt-empty { text-align: center; color: var(--muted); font-size: .8rem; padding: .8rem 0; }
+.tt-summary { display: flex; gap: .5rem; flex-wrap: wrap; }
+.tt-summary span { background: #fff; border: 1px solid var(--border); border-radius: 99px; padding: .25rem .8rem; font-size: .8rem; color: var(--muted); box-shadow: var(--shadow); }
+.tt-summary b { color: var(--primary); }
+
+/* ---------- teacher dashboard sections ---------- */
+.td-section { margin-top: 1.4rem; }
+.td-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: .7rem; }
+.td-head h3 { margin: 0; font-size: 1.1rem; color: #1e1b4b; }
+.td-next { background: #fff; border: 1px solid var(--border); border-radius: 99px; padding: .25rem .85rem; font-size: .82rem; color: var(--muted); box-shadow: var(--shadow); }
+.td-next b { color: var(--primary); }
+
+/* today's class cards */
+.td-today { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: .9rem; }
+.td-class { display: flex; align-items: stretch; border-radius: 16px; overflow: hidden; background: color-mix(in srgb, var(--c1) 9%, #fff); border: 1px solid color-mix(in srgb, var(--c1) 30%, #fff); box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s; }
+.td-class:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.td-class.done { opacity: .6; }
+.td-class.live { box-shadow: 0 0 0 3px var(--c1), var(--shadow-hover); }
+.td-time { width: 88px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; color: #fff; background: linear-gradient(160deg, var(--c1), var(--c2)); text-align: center; }
+.td-time b { font-size: 1.05rem; }
+.td-time span { font-size: .65rem; text-transform: uppercase; letter-spacing: .08em; opacity: .8; }
+.td-info { flex: 1; min-width: 0; padding: .8rem .9rem; }
+.td-code { display: flex; align-items: center; gap: .5rem; font-weight: 800; font-size: .8rem; letter-spacing: .05em; color: var(--c2); }
+.td-info h4 { margin: .15rem 0 .45rem; font-size: 1rem; line-height: 1.25; }
+.td-state { font-size: .62rem; font-weight: 700; letter-spacing: .04em; padding: .08rem .5rem; border-radius: 99px; background: #e5e7eb; color: #374151; text-transform: uppercase; }
+.td-state.live { background: #fee2e2; color: #b91c1c; }
+.td-state.upcoming { background: #dbeafe; color: #1e40af; }
+.td-state.done { background: #dcfce7; color: #166534; }
+.td-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.td-chips span { background: #fff; border: 1px solid color-mix(in srgb, var(--c1) 25%, #fff); border-radius: 99px; padding: .08rem .55rem; font-size: .72rem; color: #334155; }
+.td-chips.dark span { background: color-mix(in srgb, var(--c1) 12%, #fff); }
+.td-open { align-self: center; margin-right: .8rem; text-decoration: none; font-weight: 700; font-size: .8rem; color: #fff; background: var(--c2); padding: .4rem .75rem; border-radius: 10px; white-space: nowrap; }
+.td-open:hover { filter: brightness(1.1); }
+
+/* subjects per semester */
+.td-sem { margin-bottom: 1.2rem; }
+.td-sem-title { display: inline-flex; align-items: center; gap: .6rem; color: #fff; font-weight: 700; padding: .4rem 1rem; border-radius: 99px; margin-bottom: .7rem; background: linear-gradient(135deg, var(--c1), var(--c2)); }
+.td-sem-title small { opacity: .9; font-weight: 500; }
+.td-sem-title em { font-style: normal; font-size: .68rem; text-transform: capitalize; background: rgba(255, 255, 255, .25); padding: 0 .5rem; border-radius: 99px; }
+.td-subjects { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1rem; }
+.td-subj { border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; background: color-mix(in srgb, var(--c1) 7%, #fff); border: 1px solid color-mix(in srgb, var(--c1) 28%, #fff); box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s; }
+.td-subj:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+.td-subj-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .6rem; padding: .85rem 1rem; color: #fff; background: linear-gradient(135deg, var(--c1), var(--c2)); }
+.td-subj-head h4 { margin: .1rem 0 0; font-size: 1rem; line-height: 1.25; color: #fff; }
+.td-subj-code { font-weight: 800; font-size: .78rem; letter-spacing: .06em; opacity: .95; }
+.td-credit { background: rgba(255, 255, 255, .25); border-radius: 8px; padding: .12rem .5rem; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+.td-subj-body { padding: .8rem 1rem 1rem; display: flex; flex-direction: column; gap: .6rem; flex: 1; }
+.td-sched { background: #fff; border: 1px solid color-mix(in srgb, var(--c1) 20%, #fff); border-radius: 10px; padding: .45rem .7rem; font-size: .8rem; display: flex; flex-direction: column; gap: .15rem; }
+.td-sched b { color: var(--c2); display: inline-block; min-width: 2.2rem; }
+.td-sched span { color: var(--muted); }
+.td-btn { margin-top: auto; text-align: center; text-decoration: none; font-weight: 700; font-size: .85rem; color: #fff; padding: .5rem; border-radius: 10px; background: linear-gradient(135deg, var(--c1), var(--c2)); }
+.td-btn:hover { filter: brightness(1.08); }
+.td-contents { background: #fff; border: 1px solid color-mix(in srgb, var(--c1) 20%, #fff); border-radius: 10px; padding: .4rem .7rem; font-size: .8rem; }
+.td-contents summary { cursor: pointer; font-weight: 700; color: var(--c2); }
+.td-contents p { margin: .4rem 0 0; max-height: 180px; overflow: auto; white-space: pre-wrap; color: #334155; line-height: 1.45; }
+
+@media (max-width: 520px) {
+  .td-today { grid-template-columns: 1fr; }
+  .td-time { width: 72px; }
+}

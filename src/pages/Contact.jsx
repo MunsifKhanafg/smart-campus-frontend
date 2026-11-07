@@ -8,6 +8,7 @@ import { fmtDate } from '../components/ui.jsx';
 // Public page (no login). Everything shown here comes from MongoDB, so the University Head can change it from Settings.
 export default function Contact() {
   const user = useSelector((s) => s.auth.user);
+  const portal = useSelector((s) => s.settings.admissionPortal);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
 
@@ -20,7 +21,12 @@ export default function Contact() {
     <div className="public-page">
       <header className="row-between">
         <Brand showCampus />
-        <Link className="btn btn-ghost" to={user ? '/dashboard' : '/login'}>{user ? 'Dashboard' : 'Login'}</Link>
+        <div className="actions">
+          {portal?.externalUrl
+            ? <a className="btn btn-primary" href={portal.externalUrl} target="_blank" rel="noreferrer">Apply for admission</a>
+            : <Link className="btn btn-primary" to="/apply">Apply for admission</Link>}
+          <Link className="btn btn-ghost" to={user ? '/dashboard' : '/login'}>{user ? 'Dashboard' : 'Login'}</Link>
+        </div>
       </header>
       <h1>Contact us</h1>
       {error && <div className="alert alert-error">{error}</div>}

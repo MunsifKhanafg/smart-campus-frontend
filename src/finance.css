@@ -1,0 +1,61 @@
+/* Fee announcements and the promotion fee ledger. Loaded last (see main.jsx). */
+
+/* ---------- fee announcement form ---------- */
+.fee-ann { border-top: 5px solid #4f46e5; }
+.fee-scope { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: .8rem; margin: 1rem 0; }
+.fee-scope label { display: grid; grid-template-columns: auto 1fr; column-gap: .6rem; align-items: center; padding: .8rem 1rem; border: 2px solid var(--border); border-radius: 14px; cursor: pointer; background: #fff; transition: border-color .15s, background .15s; }
+.fee-scope label.on { border-color: #4f46e5; background: #eef0ff; }
+.fee-scope input { width: auto; margin: 0; }
+.fee-scope b { color: #1e1b4b; }
+.fee-scope span { grid-column: 2; color: var(--muted); font-size: .82rem; }
+.fee-defaults { background: linear-gradient(180deg, #f6f8ff, #eef6f5); border: 1px solid var(--border); border-radius: 14px; padding: 1rem; margin-bottom: 1rem; }
+.fee-defaults > b { margin-right: .6rem; color: #1e1b4b; }
+.fee-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .7rem; margin: .7rem 0; }
+.fee-grid .wide { grid-column: span 2; }
+.fee-table { min-width: 980px; }
+.fee-table td { vertical-align: middle; }
+.fee-table input[type='number'] { width: 96px; }
+.fee-table input[type='date'] { width: 142px; }
+.fee-table td input:not([type]) , .fee-table td input[type='text'] { min-width: 150px; }
+.fee-table input[type='checkbox'] { width: auto; }
+.fee-table tr.off { opacity: .45; }
+.fee-announce { border-left: 5px solid #0d9488; }
+.fee-title { font-size: 1.05rem; color: #1e1b4b; }
+
+/* ---------- promotion ledger ---------- */
+.pf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .9rem; margin-bottom: 1rem; }
+.pf-tile { display: flex; flex-direction: column; gap: .15rem; padding: 1rem 1.2rem; border-radius: 16px; color: #fff; background: linear-gradient(135deg, #4f46e5, #818cf8); box-shadow: 0 8px 20px rgba(79, 70, 229, .25); }
+.pf-tile b { font-size: 1.7rem; }
+.pf-tile span { opacity: .92; font-size: .85rem; }
+.pf-tile.ok { background: linear-gradient(135deg, #0d9488, #2dd4bf); box-shadow: 0 8px 20px rgba(13, 148, 136, .25); }
+.pf-tile.bad { background: linear-gradient(135deg, #e11d48, #fb7185); box-shadow: 0 8px 20px rgba(225, 29, 72, .25); }
+.pf-tile.warn { background: linear-gradient(135deg, #d97706, #fbbf24); box-shadow: 0 8px 20px rgba(217, 119, 6, .25); }
+.pf-missing { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.pf-sems { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: .7rem; }
+.pf-sem { display: flex; flex-direction: column; gap: .2rem; padding: .7rem .9rem; border-radius: 12px; background: #f7f8ff; border: 1px solid #dfe3f8; font-size: .82rem; }
+.pf-sem b { color: #1e1b4b; font-size: .9rem; }
+.pf-sem .ok { color: #0f766e; } .pf-sem .bad { color: #be123c; } .pf-sem .warn { color: #b45309; } .pf-sem .gray { color: #64748b; }
+.pf-table th.c, .pf-table td.c { text-align: center; }
+.pf-cell { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; font-weight: 800; font-size: .85rem; font-style: normal; }
+.pf-cell.paid { background: #dcfce7; color: #15803d; }
+.pf-cell.unpaid { background: #fee2e2; color: #b91c1c; }
+.pf-cell.no_notice { background: #ffedd5; color: #c2410c; }
+.pf-cell.no_record { background: #e5e7eb; color: #6b7280; }
+.pf-cell.current { background: #dbeafe; color: #1d4ed8; }
+.pf-cell.none { background: transparent; }
+.pf-count { display: inline-block; min-width: 26px; padding: .1rem .5rem; border-radius: 99px; background: #e11d48; color: #fff; font-weight: 800; font-size: .8rem; }
+.pf-clear { color: #15803d; font-weight: 700; font-size: .8rem; }
+.pf-legend { display: flex; flex-wrap: wrap; gap: .5rem 1.2rem; margin-top: .6rem; font-size: .8rem; color: var(--muted); align-items: center; }
+.pf-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.pf-legend .pf-cell { width: 22px; height: 22px; font-size: .7rem; border-radius: 7px; }
+.pf-modal { width: 100%; max-width: 660px; max-height: 88vh; overflow-y: auto; padding: 1.4rem; background: #fff; border-radius: 18px; box-shadow: 0 24px 60px rgba(0, 0, 0, .3); }
+.pf-history { display: grid; gap: .6rem; margin-top: 1rem; }
+.pf-hrow { padding: .7rem .9rem; border-radius: 12px; border: 1px solid var(--border); border-left: 5px solid #94a3b8; background: #fafbff; }
+.pf-hrow.paid { border-left-color: #16a34a; background: #f2fcf5; }
+.pf-hrow.unpaid { border-left-color: #dc2626; background: #fff5f5; }
+.pf-hrow.no_notice { border-left-color: #ea580c; background: #fff8f1; }
+.pf-hrow.current { border-left-color: #2563eb; background: #f3f7ff; }
+.pf-hhead { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.pf-hhead em { font-style: normal; font-size: .8rem; color: var(--muted); }
+.pf-hhead small { color: var(--muted); }
+.pf-hline { display: flex; justify-content: space-between; gap: .8rem; flex-wrap: wrap; margin-top: .35rem; font-size: .84rem; }

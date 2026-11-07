@@ -1,0 +1,81 @@
+/* The login page always fits on one screen: no page scrolling on desktop or laptop. */
+html, body, #root { height: 100%; }
+.ln { height: 100vh; height: 100dvh; display: grid; grid-template-columns: 1.1fr 1fr; background: #f8fafc; overflow: hidden; }
+
+/* Left: brand panel */
+.ln-side { position: relative; overflow: hidden; color: #fff; padding: 1.5rem 2.5rem; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem; min-height: 0; background: linear-gradient(150deg, #071a33 0%, #0b3a54 55%, #17707f 120%); }
+/* Soft background glows in the logo's colours. They stay still and sit behind the text (no moving circles). */
+.ln-orb { position: absolute; z-index: 0; pointer-events: none; border-radius: 50%; filter: blur(70px); opacity: .30; }
+.ln-orb.o1 { width: 340px; height: 340px; background: #2aa3b5; top: -110px; left: -100px; }
+.ln-orb.o2 { width: 300px; height: 300px; background: #ae855d; bottom: -110px; right: -80px; opacity: .24; }
+.ln-orb.o3 { width: 160px; height: 160px; background: #3b82a6; top: 48%; right: 10%; opacity: .16; }
+/* Everything except the glows sits above them. (Before, this rule also hit the glows, turned them from absolute into
+   in-flow boxes and made them push and overlap the text.) */
+.ln-side > :not(.ln-orb) { position: relative; z-index: 1; }
+.ln-back { color: #bcd9e3; text-decoration: none; font-size: .85rem; }
+.ln-back:hover { color: #fff; }
+.ln-hero { text-align: left; }
+.ln-logo { width: 88px; height: 88px; border-radius: 24px; display: grid; place-items: center; background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .28); backdrop-filter: blur(10px); box-shadow: 0 14px 32px rgba(0, 0, 0, .25); margin-bottom: 1rem; }
+.ln-logo svg { width: 64px; height: 64px; }
+.ln-logo.small { width: 60px; height: 60px; border-radius: 18px; background: #e3f1f4; border-color: #b9dbe3; box-shadow: none; margin: 0 auto .4rem; }
+.ln-logo.small svg { width: 44px; height: 44px; }
+.ln-logo-img { width: 64px; height: 64px; object-fit: contain; border-radius: 14px; }
+.ln-logo.small .ln-logo-img { width: 44px; height: 44px; }
+.ln-hero h1 { font-size: 2rem; line-height: 1.15; margin: 0 0 .3rem; color: #fff; letter-spacing: -.02em; }
+.ln-campus { margin: 0 0 .7rem; color: #e3c29a; font-weight: 600; }
+.ln-tag { max-width: 440px; color: #bcd9e3; font-size: .98rem; margin: 0; }
+.ln-features { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; }
+.ln-feature { display: flex; gap: .6rem; align-items: center; padding: .6rem .8rem; border-radius: 12px; background: rgba(255, 255, 255, .09); border: 1px solid rgba(255, 255, 255, .16); backdrop-filter: blur(8px); }
+.ln-feature > span { font-size: 1.25rem; }
+.ln-feature b { display: block; font-size: .85rem; }
+.ln-feature small { color: #bcd9e3; font-size: .72rem; }
+
+/* Right: form */
+.ln-main { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem 1.25rem; gap: .6rem; min-height: 0; overflow-y: auto; }
+.ln-card { width: 100%; max-width: 410px; background: #fff; border-radius: 20px; padding: 1.7rem 1.8rem; box-shadow: 0 24px 60px rgba(7, 26, 51, .16), 0 2px 6px rgba(15, 23, 42, .05); border: 1px solid #e2e8f0; }
+.ln-card h2 { margin: 0 0 .2rem; font-size: 1.55rem; letter-spacing: -.02em; }
+.ln-card label { margin: .6rem 0 .25rem; }
+.ln-sub { margin: 0 0 .8rem; color: #64748b; font-size: .92rem; }
+.ln-mobile-brand { display: none; text-align: center; margin-bottom: .7rem; }
+.ln-input { display: flex; align-items: center; gap: .6rem; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 0 .85rem; background: #f8fafc; transition: border-color .15s, box-shadow .15s, background .15s; }
+.ln-input:focus-within { border-color: var(--primary-light); background: #fff; box-shadow: 0 0 0 4px var(--ring); }
+.ln-input input { border: 0; background: transparent; box-shadow: none !important; padding: .7rem 0; }
+.ln-input input:focus { box-shadow: none; }
+.ln-eye { border: 0; background: none; color: var(--primary); font-weight: 600; cursor: pointer; font-size: .8rem; }
+.ln-submit { width: 100%; margin-top: 1.1rem; border: 0; border-radius: 12px; padding: .8rem; font: inherit; font-weight: 700; font-size: 1rem; color: #fff; cursor: pointer; background: linear-gradient(135deg, var(--primary-dark), var(--primary-light)); box-shadow: 0 10px 24px rgba(23, 112, 127, .35); transition: transform .12s, box-shadow .15s, filter .15s; }
+.ln-submit:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 14px 28px rgba(23, 112, 127, .4); }
+.ln-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+.ln-links { display: flex; gap: .6rem; justify-content: center; margin-top: .9rem; font-size: .88rem; color: #94a3b8; }
+.ln-links a { color: var(--primary); text-decoration: none; font-weight: 600; }
+.ln-links a:hover { text-decoration: underline; }
+.ln-foot { color: #94a3b8; font-size: .75rem; }
+
+/* Short screens (small laptops): drop the feature cards so everything still fits without scrolling */
+@media (max-height: 760px) {
+  .ln-features, .ln-tag { display: none; }
+  .ln-logo { width: 72px; height: 72px; margin-bottom: .7rem; }
+  .ln-logo svg, .ln-logo-img { width: 52px; height: 52px; }
+  .ln-hero h1 { font-size: 1.7rem; }
+  .ln-foot { display: none; }
+}
+@media (max-height: 620px) {
+  .ln-sub { display: none; }
+  .ln-card { padding: 1.2rem 1.4rem; }
+}
+
+@media (max-width: 900px) {
+  .ln { grid-template-columns: 1fr; }
+  .ln-side { display: none; }
+  .ln-mobile-brand { display: block; }
+  .ln-main { background: linear-gradient(160deg, #e8f3f6, #f7f1e9); }
+}
+
+/* Night mode for the sign-in page (the colour variables come from theme.css) */
+[data-theme='dark'] .ln { background: #0a0f1e; }
+[data-theme='dark'] .ln-main { background: #0a0f1e; }
+[data-theme='dark'] .ln-card { background: var(--surface); border-color: var(--border); box-shadow: 0 24px 60px rgba(0, 0, 0, .5); }
+[data-theme='dark'] .ln-input { background: var(--input-bg); border-color: var(--border); }
+[data-theme='dark'] .ln-input:focus-within { background: var(--surface-2); }
+[data-theme='dark'] .ln-sub, [data-theme='dark'] .ln-foot, [data-theme='dark'] .ln-links { color: var(--muted); }
+[data-theme='dark'] .ln-logo.small { background: var(--surface-2); border-color: var(--border); }
+@media (max-width: 900px) { [data-theme='dark'] .ln-main { background: #0a0f1e; } }

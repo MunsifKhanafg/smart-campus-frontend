@@ -74,6 +74,29 @@ export default function Users() {
     }
   };
 
+  const [edit, setEdit] = useState(null); // principal: change someone's login email / password
+
+  const saveLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const done = [];
+      if (edit.email.trim().toLowerCase() !== edit.original.toLowerCase()) {
+        await api.patch(`/users/${edit.id}/email`, { email: edit.email });
+        done.push('email');
+      }
+      if (edit.password) {
+        await api.post(`/users/${edit.id}/reset-password`, { temporaryPassword: edit.password });
+        done.push('password');
+      }
+      if (!done.length) return setMsg({ type: 'error', text: 'Nothing was changed. Type a new email or a new temporary password.' });
+      setMsg({ type: 'success', text: `${edit.name}: ${done.join(' and ')} changed.${done.includes('password') ? ' They must choose their own password at the next login.' : ''}` });
+      setEdit(null);
+      load();
+    } catch (err) {
+      setMsg({ type: 'error', text: errorMessage(err) });
+    }
+  };
+
   // Students are added on the Students page, because they need an academic profile too.
   const roleOptions = isHead ? ['teacher', 'finance_officer'] : ['teacher'];
 
@@ -116,6 +139,21 @@ export default function Users() {
         </form>
       )}
 
+      {edit && (
+        <form className="card login-edit" onSubmit={saveLogin}>
+          <h3 style={{ marginTop: 0 }}>Login details: {edit.name}</h3>
+          <div className="form-grid">
+            <div><label>Email (used to sign in)</label><input required type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></div>
+            <div><label>New temporary password (leave empty to keep the current one)</label><input type="text" minLength={8} placeholder="at least 8 characters" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} /></div>
+          </div>
+          <p className="muted small">Share the new details with the person. After a password reset they must choose their own password when they sign in.</p>
+          <div className="actions">
+            <button className="btn btn-primary">Save login details</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>Cancel</button>
+          </div>
+        </form>
+      )}
+
       <div className="card filters">
         <input placeholder="Search name or email..." value={filters.search} onChange={(e) => setFilters({ ...filters, search: e.target.value })} />
         <select value={filters.role} onChange={(e) => setFilters({ ...filters, role: e.target.value })}>
@@ -142,6 +180,9 @@ export default function Users() {
                 <td>{u.department?.code || '—'}</td>
                 <td><span className={`badge ${u.isActive ? 'active' : 'archived'}`}>{u.isActive ? 'active' : 'inactive'}</span></td>
                 <td className="actions">
+                  {isHead && u.role !== 'university_head' && (
+                    <button className="btn btn-small" onClick={() => { setEdit({ id: u._id, name: u.name, original: u.email, email: u.email, password: '' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Login details</button>
+                  )}
                   {u.role !== 'university_head' && u._id !== user._id && !(u.role === 'hod' && !isHead) && (
                     <button className="btn btn-small" onClick={() => toggle(u)}>{u.isActive ? 'Deactivate' : 'Activate'}</button>
                   )}

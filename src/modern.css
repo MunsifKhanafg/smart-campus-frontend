@@ -1,0 +1,101 @@
+/* ==========================================================================================
+   modern.css - fresh colour palette, softer surfaces, timetable cards and print layout.
+   Loaded LAST (see main.jsx). Light mode only: night mode keeps its own palette from theme.css.
+   To change the look of the whole app, edit the variables in the first block.
+   ========================================================================================== */
+
+:root:not([data-theme='dark']) {
+  --primary: #4f46e5;          /* indigo */
+  --primary-dark: #3730a3;
+  --primary-light: #6366f1;
+  --primary-soft: rgba(79, 70, 229, .09);
+  --accent: #0d9488;           /* teal */
+  --accent-soft: rgba(13, 148, 136, .10);
+  --bg: #f3f5fc;
+  --surface: #ffffff;
+  --surface-2: #f6f7fd;
+  --card: #ffffff;
+  --input-bg: #ffffff;
+  --text: #1b2240;
+  --muted: #667090;
+  --border: #e3e7f5;
+  --label: #3d466b;
+  --sidebar-from: #1a1446;     /* deep indigo */
+  --sidebar-to: #0f2a4a;       /* deep navy-teal */
+  --sidebar-text: #c9cff0;
+  --sidebar-active: #5eead4;
+  --shadow: 0 1px 2px rgba(30, 27, 75, .05), 0 8px 24px rgba(30, 27, 75, .07);
+  --shadow-hover: 0 4px 10px rgba(30, 27, 75, .08), 0 16px 34px rgba(30, 27, 75, .12);
+  --btn-bg: #eef0fb;
+  --btn-hover: #e1e5f8;
+}
+
+:root:not([data-theme='dark']) body {
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(99, 102, 241, .10), transparent 60%),
+    radial-gradient(800px 420px at -10% 110%, rgba(13, 148, 136, .08), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+}
+
+/* ---------- cards, buttons, tables ---------- */
+.card { border-radius: 18px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.btn-primary { background: linear-gradient(135deg, #4f46e5, #7c3aed); border: 0; color: #fff; box-shadow: 0 6px 16px rgba(79, 70, 229, .28); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.07); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+.btn-danger { background: linear-gradient(135deg, #e11d48, #f43f5e); border: 0; color: #fff; }
+input, select, textarea { border-radius: 12px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 4px rgba(99, 102, 241, .16); }
+:root:not([data-theme='dark']) table thead th { background: linear-gradient(90deg, #eef0ff, #e8f7f5); color: #3730a3; }
+:root:not([data-theme='dark']) table tbody tr:hover { background: rgba(99, 102, 241, .06); }
+
+/* hero banners and summary tiles get a richer gradient */
+.hero { background: linear-gradient(120deg, #312e81 0%, #4f46e5 55%, #0d9488 100%); color: #fff; border-radius: 22px; box-shadow: 0 16px 38px rgba(79, 70, 229, .26); }
+.hero h1, .hero p { color: #fff; }
+.tile { border-radius: 18px; }
+
+/* ---------- timetable: course cards (HOD page) ---------- */
+.tt-courses { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .85rem; }
+.tt-course { --c1: #6366f1; --c2: #8b5cf6; border-radius: 16px; padding: .85rem 1rem; color: #fff;
+  background: linear-gradient(135deg, var(--c1), var(--c2)); box-shadow: 0 6px 16px color-mix(in srgb, var(--c2) 28%, transparent); position: relative; overflow: hidden; }
+.tt-course::after { content: ''; position: absolute; right: -24px; top: -24px; width: 88px; height: 88px; border-radius: 50%; background: rgba(255, 255, 255, .16); }
+.tt-course > * { position: relative; z-index: 1; }
+.tt-course-top { display: flex; justify-content: space-between; align-items: center; font-size: .85rem; }
+.tt-course-top span { background: rgba(255, 255, 255, .26); border-radius: 999px; padding: .05rem .6rem; font-size: .72rem; font-weight: 700; }
+.tt-course-title { font-weight: 700; font-size: 1.02rem; margin: .3rem 0 .15rem; line-height: 1.25; }
+.tt-course-teacher { font-size: .78rem; opacity: .94; }
+.tt-bar { height: 7px; border-radius: 99px; background: rgba(255, 255, 255, .3); margin: .6rem 0 .3rem; overflow: hidden; }
+.tt-bar i { display: block; height: 100%; background: #fff; border-radius: 99px; transition: width .3s; }
+.tt-course-foot { font-size: .75rem; opacity: .97; }
+.tt-course.full { filter: saturate(.85); }
+.tt-course.full::before { content: '✓'; position: absolute; right: .8rem; bottom: .55rem; z-index: 2; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #059669; font-weight: 800; display: grid; place-items: center; }
+.tt-hint { margin: .9rem 0 .2rem; padding: .65rem .9rem; border-radius: 12px; font-size: .88rem; background: var(--accent-soft); color: #0f766e; }
+.tt-hint.warn { background: #fef3c7; color: #92400e; }
+.tt-hint.bad { background: #fee2e2; color: #991b1b; font-weight: 600; }
+[data-theme='dark'] .tt-hint { background: rgba(45, 212, 191, .14); color: #5eead4; }
+[data-theme='dark'] .tt-hint.warn { background: rgba(245, 158, 11, .16); color: #fcd34d; }
+[data-theme='dark'] .tt-hint.bad { background: rgba(239, 68, 68, .16); color: #fca5a5; }
+
+/* ---------- principal: edit login details dialog ---------- */
+.login-edit { margin-top: .6rem; padding: .9rem 1rem; border-radius: 14px; background: var(--primary-soft); border: 1px dashed var(--primary-light); }
+
+/* ---------- print ---------- */
+.print-sheet { display: none; }
+@media print {
+  body { background: #fff !important; }
+  .no-print, .sidebar, .topbar, nav, header, aside, .thm { display: none !important; }
+  .print-sheet { display: block !important; color: #000; font-family: Georgia, 'Times New Roman', serif; }
+  main, .main, .content, .layout { margin: 0 !important; padding: 0 !important; width: 100% !important; max-width: none !important; }
+  .ps-head { text-align: center; margin-bottom: 14px; border-bottom: 3px double #1e1b4b; padding-bottom: 8px; }
+  .ps-head h1 { font-size: 22px; margin: 0; color: #1e1b4b; }
+  .ps-head h2 { font-size: 16px; margin: 6px 0 2px; }
+  .ps-sub { font-size: 11px; color: #444; }
+  .ps-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .ps-table th { background: #e0e7ff !important; color: #1e1b4b; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .ps-table th, .ps-table td { border: 1px solid #94a3b8; padding: 5px 8px; }
+  .ps-table tr.new-day td { border-top: 2px solid #1e1b4b; }
+  .ps-table tr { page-break-inside: avoid; }
+  .ps-foot { display: flex; justify-content: space-between; margin-top: 48px; font-size: 12px; }
+  @page { size: A4 landscape; margin: 14mm; }
+}

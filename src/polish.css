@@ -1,0 +1,103 @@
+/* ==========================================================================================
+   Smart Campus visual polish. Loaded LAST (see main.jsx) so it overrides the default theme.
+   Palette:  background  soft blue-grey   #f3f6fc
+             boxes       white with a coloured top bar / tinted gradient
+             primary     indigo   #4f46e5     accent teal #0d9488
+             sidebar     deep navy gradient
+   Change a colour here and the whole app follows.
+   ========================================================================================== */
+
+:root,
+[data-theme='ocean'] {
+  --primary: #4f46e5; --primary-dark: #3730a3; --primary-light: #818cf8; --primary-soft: #eef0ff; --on-primary: #ffffff;
+  --accent: #0d9488; --accent-soft: #d9f7f2;
+  --bg: #f3f6fc; --surface: #ffffff; --surface-2: #f6f8fe; --card: #ffffff;
+  --text: #111827; --muted: #64708a; --border: #e3e8f4; --label: #374151;
+  --sidebar-from: #0f172a; --sidebar-to: #1e2a5a; --sidebar-text: #c3cdf0; --sidebar-active: #5eead4;
+  --auth-glow-1: rgba(99, 102, 241, .40); --auth-glow-2: rgba(13, 148, 136, .30);
+  --ring: rgba(99, 102, 241, .25); --btn-shadow: rgba(79, 70, 229, .32);
+  --btn-bg: #e8ecf8; --btn-hover: #d8def2;
+  --radius: 16px;
+  --shadow: 0 1px 2px rgba(30, 41, 90, .05), 0 10px 28px rgba(30, 41, 90, .07);
+  --shadow-hover: 0 4px 8px rgba(30, 41, 90, .08), 0 18px 38px rgba(30, 41, 90, .16);
+}
+
+body {
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(99, 102, 241, .10), transparent 60%),
+    radial-gradient(700px 380px at -10% 110%, rgba(13, 148, 136, .09), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* ---------- Shell ---------- */
+.sidebar { box-shadow: 4px 0 24px rgba(15, 23, 42, .18); }
+.sidebar nav a { border-radius: 12px; }
+.sidebar nav a.active { background: linear-gradient(90deg, rgba(129, 140, 248, .30), rgba(94, 234, 212, .12)); }
+.topbar { box-shadow: 0 1px 0 var(--border), 0 6px 20px rgba(30, 41, 90, .04); }
+.card { border-radius: var(--radius); }
+h1 { color: #1e1b4b; }
+
+/* ---------- Dashboard: welcome banner ---------- */
+.hero {
+  background: linear-gradient(120deg, #3730a3 0%, #4f46e5 45%, #0d9488 100%);
+  box-shadow: 0 14px 34px rgba(79, 70, 229, .28);
+  position: relative; overflow: hidden;
+}
+.hero::after { content: ''; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px; border-radius: 50%; background: rgba(255, 255, 255, .10); pointer-events: none; }
+.hero::before { content: ''; position: absolute; right: 120px; bottom: -80px; width: 160px; height: 160px; border-radius: 50%; background: rgba(255, 255, 255, .07); pointer-events: none; }
+.hero > * { position: relative; z-index: 1; }
+.hero .btn { background: #fff; color: #3730a3; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); }
+.hero .btn:hover { background: #eef0ff; }
+
+/* ---------- Dashboard: coloured stat boxes ---------- */
+.tiles .tile { color: #fff; border: 0; position: relative; overflow: hidden; transition: transform .15s, box-shadow .15s; }
+.tiles .tile::after { content: ''; position: absolute; right: -22px; bottom: -22px; width: 90px; height: 90px; border-radius: 50%; background: rgba(255, 255, 255, .14); }
+.tiles .tile:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+.tiles .tile .ico { background: rgba(255, 255, 255, .24); }
+.tiles .tile b { color: #fff; font-size: 1.75rem; }
+.tiles .tile span { color: rgba(255, 255, 255, .92); }
+.tiles .tile:nth-child(4n+1) { background: linear-gradient(135deg, #4f46e5, #818cf8); box-shadow: 0 8px 20px rgba(79, 70, 229, .30); }
+.tiles .tile:nth-child(4n+2) { background: linear-gradient(135deg, #0d9488, #2dd4bf); box-shadow: 0 8px 20px rgba(13, 148, 136, .30); }
+.tiles .tile:nth-child(4n+3) { background: linear-gradient(135deg, #d97706, #fbbf24); box-shadow: 0 8px 20px rgba(217, 119, 6, .30); }
+.tiles .tile:nth-child(4n+4) { background: linear-gradient(135deg, #e11d48, #fb7185); box-shadow: 0 8px 20px rgba(225, 29, 72, .30); }
+
+/* ---------- Departments: tinted coloured boxes ---------- */
+.dept-grid .dept-card { --d: #4f46e5; border: 1px solid color-mix(in srgb, var(--d) 22%, #fff); border-top: 5px solid var(--d);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--d) 11%, #fff), #fff 58%); }
+.dept-grid .dept-card:nth-child(6n+2) { --d: #0d9488; }
+.dept-grid .dept-card:nth-child(6n+3) { --d: #d97706; }
+.dept-grid .dept-card:nth-child(6n+4) { --d: #e11d48; }
+.dept-grid .dept-card:nth-child(6n+5) { --d: #0284c7; }
+.dept-grid .dept-card:nth-child(6n+6) { --d: #7c3aed; }
+.dept-grid .dept-card:nth-child(n) { border-top-color: var(--d); }
+.dept-grid .dept-card:hover { border-color: var(--d); }
+.dept-grid .dept-card .code { background: var(--d); color: #fff; }
+.dept-grid .dept-card h3 { color: color-mix(in srgb, var(--d) 70%, #0f172a); }
+.dept-grid .dept-card .mini { border-top-color: color-mix(in srgb, var(--d) 30%, #fff); }
+.dept-grid .dept-card .mini b { color: var(--d); font-size: 1.2rem; }
+
+/* ---------- Teachers & all tables: coloured header, zebra rows ---------- */
+.table-wrap { overflow-x: auto; }
+table thead th { background: linear-gradient(90deg, #eef0ff, #e6f7f5); color: #3730a3; border-bottom: 2px solid #d7dcf5; }
+table tbody tr:nth-child(even) { background: #f8f9fe; }
+table tbody tr:hover { background: #eef0ff; }
+table td:first-child a { color: #3730a3; text-decoration: none; }
+table td:first-child a:hover { text-decoration: underline; }
+.slot-chip { background: #e6f7f5; color: #0f766e; border: 1px solid #b7ebe4; }
+.slot-chip:nth-of-type(3n+2) { background: #fff4de; color: #92400e; border-color: #fde2a8; }
+.slot-chip:nth-of-type(3n+3) { background: #ffe6ea; color: #9f1239; border-color: #fbc3cd; }
+
+/* ---------- Teacher dashboard: subject boxes ---------- */
+.sub-card { background: #f7f8ff; border: 1px solid #dfe3f8; border-left: 5px solid var(--primary); border-radius: 12px; }
+.sub-card:nth-of-type(3n+2) { background: #f1fbf9; border-color: #cdeee9; border-left-color: #0d9488; }
+.sub-card:nth-of-type(3n+3) { background: #fffaf0; border-color: #f6e4bd; border-left-color: #d97706; }
+.card > .row-between > h4 { color: #3730a3; }
+
+/* ---------- Forms, badges, buttons ---------- */
+.card.filters, form.card { background: linear-gradient(180deg, #ffffff, #f8f9ff); }
+.btn-primary { background: linear-gradient(135deg, #4f46e5, #6366f1 55%, #0d9488); }
+.btn-primary:hover { background: linear-gradient(135deg, #3730a3, #4f46e5 55%, #0f766e); }
+.tabs button.active { border-bottom-width: 3px; }
+.empty-state { background: #fff; border: 2px dashed #d7dcf5; border-radius: var(--radius); }
+.crumbs a { color: #4f46e5; }

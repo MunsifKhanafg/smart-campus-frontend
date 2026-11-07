@@ -1,80 +1,77 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api, { errorMessage } from '../api/axios.js';
-import { useConfirm } from './ConfirmModal.jsx';
 
-// Teachers (and the HOD) of a department with the classes each one teaches.
-// With canDelete, a teacher added by mistake can be deleted (the server refuses if the teacher has courses or records).
-export default function TeachersPanel({ department, canDelete = false }) {
+// Teachers as boxes, grouped by department, with a search bar. Click a box to see all of that teacher's classes.
+export default function TeachersPanel({ department }) {
+  const navigate = useNavigate();
   const [rows, setRows] = useState(null);
+  const [search, setSearch] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const confirm = useConfirm();
 
-  const load = useCallback(() => {
+  useEffect(() => {
+    setRows(null);
     const params = department ? { department } : {};
-    return Promise.all([api.get('/users', { params }), api.get('/courses', { params: { ...params, status: 'active' } })])
+    Promise.all([api.get('/users', { params }), api.get('/courses', { params: { ...params, status: 'active' } })])
       .then(([u, c]) => {
         const courses = c.data.data;
         const teachers = u.data.data.filter((x) => ['teacher', 'hod'].includes(x.role));
-        setRows(teachers.map((t) => ({ ...t, courses: courses.filter((k) => k.teacher?._id === t._id) })));
+        setRows(teachers.map((t) => ({ ...t, classes: courses.filter((k) => k.teacher?._id === t._id).length })));
         setError('');
       })
       .catch((e) => setError(errorMessage(e)));
   }, [department]);
 
-  useEffect(() => {
-    setRows(null);
-    load();
-  }, [load]);
-
-  const remove = async (t) => {
-    const yes = await confirm({
-      tone: 'danger',
-      title: `Delete teacher "${t.name}"?`,
-      message: 'The account will be deleted permanently.\n\nThis is only allowed if the teacher has no courses or teaching records. Otherwise deactivate the account instead.',
-      confirmText: 'Delete teacher',
+  const groups = useMemo(() => {
+    if (!rows) return [];
+    const q = search.trim().toLowerCase();
+    const shown = q ? rows.filter((t) => `${t.name} ${t.email}`.toLowerCase().includes(q)) : rows;
+    const map = new Map();
+    shown.forEach((t) => {
+      const key = t.department?.name || 'No department';
+      (map.get(key) || map.set(key, []).get(key)).push(t);
     });
-    if (!yes) return;
-    try {
-      await api.delete(`/users/${t._id}`);
-      setNotice('');
-      await load();
-    } catch (e) {
-      setNotice(errorMessage(e));
-    }
-  };
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [rows, search]);
 
   if (error) return <div className="alert alert-error">{error}</div>;
   if (!rows) return <p className="muted">Loading teachers...</p>;
-  if (!rows.length) return <div className="empty-state"><div className="big">👩‍🏫</div>No teachers in this department yet.</div>;
+
+  const total = groups.reduce((n, [, list]) => n + list.length, 0);
 
   return (
     <>
-      {notice && <div className="alert alert-error">{notice}</div>}
-      <div className="card table-wrap">
-        <table>
-          <thead><tr><th>Teacher</th><th>Department</th><th>Classes taught</th><th>Status</th>{canDelete && <th />}</tr></thead>
-          <tbody>
-            {rows.map((t) => (
-              <tr key={t._id}>
-                <td>{t.name}{t.role === 'hod' && <span className="badge upcoming" style={{ marginLeft: '.4rem' }}>HOD</span>}<div className="muted small">{t.email}</div></td>
-                <td>{t.department?.code || '—'}</td>
-                <td>
-                  {t.courses.length
-                    ? t.courses.map((k) => <span key={k._id} className="slot-chip"><b>{k.code}</b> {k.semester?.name}{k.section ? ` · ${k.section}` : ''}</span>)
-                    : <em className="muted">Not assigned</em>}
-                </td>
-                <td><span className={`badge ${t.isActive ? 'active' : 'archived'}`}>{t.isActive ? 'active' : 'inactive'}</span></td>
-                {canDelete && (
-                  <td className="actions">
-                    {t.role === 'teacher' && <button className="btn btn-small btn-danger" onClick={() => remove(t)}>Delete</button>}
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="search-bar">
+        <span>🔍</span>
+        <input placeholder={`Search ${rows.length} teachers by name or email...`} value={search} onChange={(e) => setSearch(e.target.value)} />
+        <small className="muted">{total} shown</small>
       </div>
+
+      {!groups.length && <div className="card empty-state"><div className="big">👩‍🏫</div>No teachers found.</div>}
+
+      {groups.map(([deptName, list]) => (
+        <section key={deptName} className="group">
+          <h3 className="group-title">{deptName} <span>{list.length}</span></h3>
+          <div className="person-grid">
+            {list.map((t) => (
+              <div key={t._id} className="person-card" role="link" tabIndex={0}
+                onClick={() => navigate(`/teachers/${t._id}`)} onKeyDown={(e) => e.key === 'Enter' && navigate(`/teachers/${t._id}`)}>
+                <div className="avatar">{(t.name || '?')[0]}</div>
+                <div className="info">
+                  <b>{t.name}</b>
+                  <small>{t.email}</small>
+                  <div className="chips">
+                    {t.role === 'hod' && <span className="badge upcoming">HOD</span>}
+                    <span className="badge completed">{t.classes} class{t.classes === 1 ? '' : 'es'}</span>
+                    {!t.isActive && <span className="badge archived">inactive</span>}
+                  </div>
+                </div>
+                <span className="go">›</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
     </>
   );
 }

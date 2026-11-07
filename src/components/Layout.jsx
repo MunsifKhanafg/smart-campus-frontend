@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/authSlice.js';
 import api from '../api/axios.js';
 import Brand from './Brand.jsx';
+import LogoToggles from './LogoToggles.jsx';
 
 const ROLE_LABEL = {
   university_head: 'University Head',
@@ -13,84 +14,50 @@ const ROLE_LABEL = {
   student: 'Student',
 };
 
-// Menu items per role. Later modules simply add more entries here (and a route in App.jsx).
-const COMMON = [
-  ['/calendar', 'Academic Calendar'],
-  ['/announcements', 'Announcements'],
-];
+// Each role only sees the pages it really works with, grouped under small headings.
+// (Pages a role should not open are also blocked by the routes in App.jsx and by the server.)
 const MENU = {
   university_head: [
-    ['/dashboard', 'Dashboard'],
-    ['/departments', 'Departments'],
-    ['/teachers', 'Teachers'],
-    ['/students', 'Students'],
-    ['/attendance', 'Attendance'],
-    ['/users', 'Users'],
-    ['/semesters', 'Semesters'],
-    ['/courses', 'Courses'],
-    ['/examinations', 'Examinations'],
-    ['/fee-notices', 'Fee Notices'],
-    ['/finance', 'Finance Reports'],
-    ['/admissions', 'Exam Admissions'],
-    ['/documents', 'Student Documents'],
-    ['/complaints', 'Complaints'],
-    ['/insights', 'Reports & Insights'],
-    ...COMMON,
-    ['/settings', 'University Settings'],
+    { items: [['/dashboard', 'Dashboard']] },
+    { title: 'University', items: [['/departments', 'Departments'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/applications', 'New Applications'], ['/attendance', 'Attendance']] },
+    { title: 'Finance', items: [['/finance-overview', 'Finance Overview'], ['/promotion-fees', 'Promotion Fees']] },
+    { title: 'Academics', items: [['/curriculum', 'BS Curriculum'], ['/insights', 'Reports & Insights']] },
+    { title: 'Communication', items: [['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar'], ['/complaints', 'Complaints']] },
+    { title: 'Administration', items: [['/users', 'Users & HODs'], ['/settings', 'University Settings']] },
   ],
   hod: [
-    ['/dashboard', 'Dashboard'],
-    ['/departments', 'My Department'],
-    ['/teachers', 'Teachers'],
-    ['/students', 'Students'],
-    ['/attendance', 'Attendance'],
-    ['/semesters', 'Semesters'],
-    ['/courses', 'Courses'],
-    ['/timetable', 'Timetable'],
-    ['/examinations', 'Examinations'],
-    ['/fee-notices', 'Fee Notices'],
-    ['/admissions', 'Exam Admissions'],
-    ['/documents', 'Student Documents'],
-    ['/complaints', 'Complaints'],
-    ['/insights', 'Reports & Insights'],
-    ...COMMON,
+    { items: [['/dashboard', 'Dashboard']] },
+    { title: 'My department', items: [['/departments', 'My Department'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/attendance', 'Attendance']] },
+    { title: 'Academics', items: [['/semesters', 'Semesters'], ['/curriculum', 'BS Curriculum'], ['/assign-teachers', 'Assign Teachers'], ['/courses', 'Courses'], ['/timetable', 'Timetable'], ['/examinations', 'Examinations']] },
+    { title: 'Students & fees', items: [['/applications', 'New Applications'], ['/admissions', 'Exam Admissions'], ['/documents', 'Student Documents'], ['/fee-notices', 'Fee Notices'], ['/promotion-fees', 'Promotion Fees']] },
+    { title: 'Support', items: [['/complaints', 'Complaints'], ['/insights', 'Reports & Insights'], ['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar']] },
   ],
   finance_officer: [
-    ['/dashboard', 'Dashboard'],
-    ['/fee-notices', 'Fee Notices'],
-    ['/finance', 'Finance Desk'],
-    ['/admissions', 'Exam Admissions'],
-    ['/complaints', 'Complaints'],
-    ...COMMON,
+    { items: [['/dashboard', 'Dashboard']] },
+    { title: 'Money', items: [['/finance-overview', 'Finance Overview'], ['/fee-notices', 'Fee Notices'], ['/promotion-fees', 'Promotion Fees'], ['/finance', 'Finance Desk']] },
+    { title: 'Students', items: [['/admissions', 'Exam Admissions'], ['/complaints', 'Fee Complaints']] },
+    { title: 'Updates', items: [['/announcements', 'Announcements']] },
   ],
   teacher: [
-    ['/dashboard', 'Dashboard'],
-    ['/courses', 'My Courses'],
-    ['/my-timetable', 'My Timetable'],
-    ['/examinations', 'Exam Date Sheet'],
-    ...COMMON,
+    { items: [['/dashboard', 'Dashboard']] },
+    { title: 'Teaching', items: [['/courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/examinations', 'Exam Date Sheet']] },
+    { title: 'Updates', items: [['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar']] },
   ],
   student: [
-    ['/dashboard', 'Dashboard'],
-    ['/my-courses', 'My Courses'],
-    ['/my-timetable', 'My Timetable'],
-    ['/exams', 'Exams & Admission'],
-    ['/results', 'My Results'],
-    ['/fees', 'Fees & Payments'],
-    ['/documents', 'My Documents'],
-    ['/complaints', 'Complaints'],
-    ['/my-performance', 'Academic Support'],
-    ['/my-record', 'My Academic Record'],
-    ...COMMON,
+    { items: [['/dashboard', 'Dashboard']] },
+    { title: 'Study', items: [['/my-courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/calendar', 'Academic Calendar']] },
+    { title: 'Exams & results', items: [['/exams', 'Exams & Admission'], ['/results', 'My Results'], ['/my-performance', 'Academic Support']] },
+    { title: 'Fees & records', items: [['/fees', 'Fees & Payments'], ['/documents', 'My Documents'], ['/my-record', 'My Academic Record']] },
+    { title: 'Help', items: [['/complaints', 'Complaints'], ['/announcements', 'Announcements']] },
   ],
 };
 
 const ICON = {
   '/dashboard': '🏠', '/departments': '🏛️', '/teachers': '👩‍🏫', '/students': '🎓', '/attendance': '✅', '/users': '👥',
   '/semesters': '📚', '/courses': '📘', '/timetable': '🕘', '/my-timetable': '🕘', '/examinations': '📝', '/fee-notices': '🧾',
-  '/finance': '💰', '/admissions': '🪪', '/documents': '📄', '/complaints': '📣', '/insights': '📊', '/calendar': '📅',
+  '/finance': '💰', '/finance-overview': '📈', '/promotion-fees': '🪜', '/admissions': '🪪', '/documents': '📄', '/complaints': '📣', '/insights': '📊', '/calendar': '📅',
   '/announcements': '📢', '/settings': '⚙️', '/my-courses': '📘', '/exams': '📝', '/results': '🏆', '/fees': '💳',
-  '/my-performance': '📈', '/my-record': '🗂️',
+  '/my-performance': '📈', '/applications': '📥', '/my-record': '🗂️', '/curriculum': '🧬', '/assign-teachers': '🧑‍🏫',
 };
 
 export default function Layout() {
@@ -122,12 +89,21 @@ export default function Layout() {
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <Brand light showCampus />
         <nav onClick={() => setOpen(false)}>
-          {(MENU[user.role] || []).map(([to, label]) => (
-            <NavLink key={to} to={to} className={({ isActive }) => (isActive ? 'active' : '')}>
-              <span className="nav-ico">{ICON[to] || '•'}</span>{label}
-            </NavLink>
+          {(MENU[user.role] || []).map((group, i) => (
+            <div key={group.title || i} className="nav-group">
+              {group.title && <div className="nav-title">{group.title}</div>}
+              {group.items.map(([to, label]) => (
+                <NavLink key={to} to={to} className={({ isActive }) => (isActive ? 'active' : '')}>
+                  <span className="nav-ico">{ICON[to] || '•'}</span>{label}
+                </NavLink>
+              ))}
+            </div>
           ))}
-          <NavLink to="/contact" target="_blank">University Contact</NavLink>
+          {user.role === 'student' && (
+            <div className="nav-group">
+              <NavLink to="/contact" target="_blank"><span className="nav-ico">☎️</span>University Contact</NavLink>
+            </div>
+          )}
         </nav>
       </aside>
 
@@ -135,6 +111,7 @@ export default function Layout() {
         <header className="topbar">
           <button className="menu-btn" onClick={() => setOpen(!open)} aria-label="Toggle menu">☰</button>
           <div className="spacer" />
+          <LogoToggles />
           <NavLink to="/notifications" className="bell" aria-label="Notifications" title="Notifications">
             🔔{unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}
           </NavLink>
@@ -142,7 +119,7 @@ export default function Layout() {
             <strong>{user.name}</strong>
             <span>{ROLE_LABEL[user.role]}{user.department ? ` · ${user.department.code}` : ''}</span>
           </div>
-          <NavLink to="/change-password" className="btn btn-ghost">Password</NavLink>
+          <NavLink to="/account" className="btn btn-ghost">Account</NavLink>
           <button className="btn btn-ghost" onClick={doLogout}>Logout</button>
         </header>
         <main className="content"><Outlet /></main>
