@@ -5,6 +5,13 @@ import { useConfirm } from '../components/ConfirmModal.jsx';
 
 const LABEL = { university_head: 'University Head', hod: 'HOD', finance_officer: 'Finance Officer', teacher: 'Teacher', student: 'Student' };
 
+// A readable temporary password with no look-alike characters (no 0/O, 1/l/I).
+const makePassword = () => {
+  const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.getRandomValues(new Uint32Array(10));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+};
+
 export default function Users() {
   const { user } = useSelector((s) => s.auth);
   const isHead = user.role === 'university_head';
@@ -14,7 +21,7 @@ export default function Users() {
   const [filters, setFilters] = useState({ role: '', department: '', search: '' });
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '' });
 
   const load = useCallback(async () => {
     try {
@@ -37,10 +44,11 @@ export default function Users() {
       const body = { ...form };
       if (!body.department || !isHead || body.role === 'finance_officer') delete body.department;
       if (!body.phone) delete body.phone;
+      if (!body.qualification) delete body.qualification;
       await api.post('/users', body);
       setMsg({ type: 'success', text: 'User created. They must change the password at first login.' });
       setShowForm(false);
-      setForm({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '' });
+      setForm({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '' });
       load();
     } catch (err) {
       setMsg({ type: 'error', text: errorMessage(err) });
@@ -74,26 +82,56 @@ export default function Users() {
     }
   };
 
-  const [edit, setEdit] = useState(null); // principal: change someone's login email / password
+  // ---------- Edit a person: name, email, phone, qualification, and a new temporary password for a forgotten one ----------
+  // The principal can edit any staff member. An HOD can edit the teachers of their own department. The server checks both.
+  const [edit, setEdit] = useState(null);
+  const canEdit = (u) => u.role !== 'university_head' && (isHead || u.role === 'teacher');
 
-  const saveLogin = async (e) => {
+  const openEdit = (u) => {
+    setEdit({
+      id: u._id, role: u.role, name: u.name, email: u.email, phone: u.phone || '', qualification: u.qualification || '', password: '',
+      original: { name: u.name, email: u.email, phone: u.phone || '', qualification: u.qualification || '' },
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const saveEdit = async (e) => {
     e.preventDefault();
+    const done = [];
     try {
-      const done = [];
-      if (edit.email.trim().toLowerCase() !== edit.original.toLowerCase()) {
-        await api.patch(`/users/${edit.id}/email`, { email: edit.email });
-        done.push('email');
+      if (edit.role === 'student') {
+        // Students are corrected on the Students page. The principal can still fix a login email here.
+        if (edit.email.trim().toLowerCase() !== edit.original.email.toLowerCase()) {
+          await api.patch(`/users/${edit.id}/email`, { email: edit.email.trim() });
+          done.push('email');
+        }
+      } else {
+        const body = {};
+        if (edit.name.trim() !== edit.original.name) body.name = edit.name.trim();
+        if (edit.email.trim().toLowerCase() !== edit.original.email.toLowerCase()) body.email = edit.email.trim();
+        if (edit.phone.trim() !== edit.original.phone) body.phone = edit.phone.trim();
+        if (edit.qualification.trim() !== edit.original.qualification) body.qualification = edit.qualification.trim();
+        if (Object.keys(body).length) {
+          await api.put(`/users/${edit.id}`, body);
+          done.push(...Object.keys(body));
+        }
       }
       if (edit.password) {
         await api.post(`/users/${edit.id}/reset-password`, { temporaryPassword: edit.password });
         done.push('password');
       }
-      if (!done.length) return setMsg({ type: 'error', text: 'Nothing was changed. Type a new email or a new temporary password.' });
-      setMsg({ type: 'success', text: `${edit.name}: ${done.join(' and ')} changed.${done.includes('password') ? ' They must choose their own password at the next login.' : ''}` });
+      if (!done.length) return setMsg({ type: 'error', text: 'Nothing was changed.' });
+
+      const hint = [];
+      if (done.includes('email')) hint.push('They must sign in with the new email.');
+      if (done.includes('password')) hint.push(`Give them the temporary password (${edit.password}). They must choose their own at the next login.`);
+      setMsg({ type: 'success', text: `${edit.original.name}: ${done.join(', ')} changed. ${hint.join(' ')}` });
       setEdit(null);
       load();
     } catch (err) {
-      setMsg({ type: 'error', text: errorMessage(err) });
+      // If the details were saved but the password was not, the list still needs to show the new details.
+      if (done.length) load();
+      setMsg({ type: 'error', text: `${done.length ? `Saved: ${done.join(', ')}. ` : ''}${errorMessage(err)}` });
     }
   };
 
@@ -116,6 +154,7 @@ export default function Users() {
             <div><label>Email</label><input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             <div><label>Temporary password (min 8)</label><input required minLength={8} type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             <div><label>Phone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div><label>Qualification (e.g. MS Computer Science)</label><input maxLength={200} value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} /></div>
             <div>
               <label>Role</label>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
@@ -140,15 +179,27 @@ export default function Users() {
       )}
 
       {edit && (
-        <form className="card login-edit" onSubmit={saveLogin}>
-          <h3 style={{ marginTop: 0 }}>Login details: {edit.name}</h3>
+        <form className="card login-edit" onSubmit={saveEdit}>
+          <h3 style={{ marginTop: 0 }}>Edit {LABEL[edit.role]}: {edit.original.name}</h3>
           <div className="form-grid">
+            {edit.role !== 'student' && <div><label>Full name</label><input required minLength={2} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>}
             <div><label>Email (used to sign in)</label><input required type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></div>
-            <div><label>New temporary password (leave empty to keep the current one)</label><input type="text" minLength={8} placeholder="at least 8 characters" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} /></div>
+            {edit.role !== 'student' && <div><label>Phone</label><input value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>}
+            {edit.role !== 'student' && <div><label>Qualification</label><input maxLength={200} value={edit.qualification} onChange={(e) => setEdit({ ...edit, qualification: e.target.value })} /></div>}
           </div>
-          <p className="muted small">Share the new details with the person. After a password reset they must choose their own password when they sign in.</p>
+
+          <h4>Forgot the password?</h4>
+          <p className="muted small" style={{ marginTop: 0 }}>
+            Nobody can read a password, but you can set a new temporary one. Type one (at least 8 characters) or press Generate, then tell it to the person.
+            When they sign in they must choose their own password. Leave this empty to keep the current password.
+          </p>
+          <div className="inline-form">
+            <div><input type="text" minLength={8} placeholder="new temporary password" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} /></div>
+            <button type="button" className="btn" onClick={() => setEdit({ ...edit, password: makePassword() })}>Generate</button>
+          </div>
+
           <div className="actions">
-            <button className="btn btn-primary">Save login details</button>
+            <button className="btn btn-primary">Save changes</button>
             <button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>Cancel</button>
           </div>
         </form>
@@ -174,15 +225,13 @@ export default function Users() {
           <tbody>
             {users.map((u) => (
               <tr key={u._id}>
-                <td>{u.name}</td>
-                <td>{u.email}</td>
+                <td>{u.name}{u.qualification && <div className="muted small">{u.qualification}</div>}</td>
+                <td>{u.email}{u.phone && <div className="muted small">{u.phone}</div>}</td>
                 <td>{LABEL[u.role]}</td>
                 <td>{u.department?.code || '—'}</td>
                 <td><span className={`badge ${u.isActive ? 'active' : 'archived'}`}>{u.isActive ? 'active' : 'inactive'}</span></td>
                 <td className="actions">
-                  {isHead && u.role !== 'university_head' && (
-                    <button className="btn btn-small" onClick={() => { setEdit({ id: u._id, name: u.name, original: u.email, email: u.email, password: '' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Login details</button>
-                  )}
+                  {canEdit(u) && <button className="btn btn-small" onClick={() => openEdit(u)}>Edit / reset password</button>}
                   {u.role !== 'university_head' && u._id !== user._id && !(u.role === 'hod' && !isHead) && (
                     <button className="btn btn-small" onClick={() => toggle(u)}>{u.isActive ? 'Deactivate' : 'Activate'}</button>
                   )}

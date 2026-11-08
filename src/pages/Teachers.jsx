@@ -35,7 +35,7 @@ export default function Teachers() {
       <div className="row-between">
         <div>
           <h1>Teachers</h1>
-          <p className="muted" style={{ margin: 0 }}>Choose a department, search by name, and click a teacher to see their classes.</p>
+          <p className="muted" style={{ margin: 0 }}>Choose a department, search by name, and click a teacher to see their classes, fix their name or email, or reset a forgotten password.</p>
         </div>
         <Link className="btn btn-ghost" to="/users">Add / deactivate teachers</Link>
       </div>

@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import api, { errorMessage } from '../api/axios.js';
+import TeacherEditPanel from '../components/TeacherEditPanel.jsx';
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1, 3) : '');
 
 // One teacher: every class and subject they teach, grouped by semester, with weekly times and class size.
 export default function TeacherDetail() {
   const { teacherId } = useParams();
+  const me = useSelector((s) => s.auth.user);
   const [teacher, setTeacher] = useState(null);
   const [courses, setCourses] = useState([]);
   const [slots, setSlots] = useState([]);
@@ -47,6 +50,8 @@ export default function TeacherDetail() {
 
   const active = courses.filter((k) => k.status === 'active');
   const totalStudents = Object.values(sizes).reduce((a, b) => a + b, 0);
+  // The University Head can edit teachers and HODs; an HOD can edit the teachers of their own department (the server checks it too).
+  const canEdit = me.role === 'university_head' ? teacher.role !== 'university_head' : me.role === 'hod' && teacher.role === 'teacher';
 
   return (
     <>
@@ -62,6 +67,13 @@ export default function TeacherDetail() {
         </div>
         <span className={`badge ${teacher.isActive ? 'active' : 'archived'}`}>{teacher.isActive ? 'active' : 'inactive'}</span>
       </div>
+
+      {canEdit && (
+        <TeacherEditPanel
+          teacher={teacher}
+          onSaved={(u) => setTeacher((t) => ({ ...t, name: u.name, email: u.email, phone: u.phone, qualification: u.qualification }))}
+        />
+      )}
 
       <div className="tiles">
         <div className="tile"><div className="ico">📘</div><div><b>{active.length}</b><span>Subjects / classes</span></div></div>

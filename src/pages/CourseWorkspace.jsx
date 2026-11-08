@@ -54,7 +54,7 @@ export default function CourseWorkspace() {
             {course.teacher?.name ? ` · ${course.teacher.name}` : ''}
           </p>
           <Tabs tabs={tabs} active={tab} onChange={setTab} />
-          {tab === 'topics' && <Topics courseId={courseId} canEdit={role === 'teacher'} />}
+          {tab === 'topics' && <Topics courseId={courseId} canEdit={role === 'teacher'} outline={course.outline} />}
           {tab === 'assignments' && <Assignments courseId={courseId} role={role} />}
           {tab === 'quizzes' && <Quizzes courseId={courseId} role={role} />}
           {tab === 'attendance' && <AttendanceTab courseId={courseId} role={role} />}

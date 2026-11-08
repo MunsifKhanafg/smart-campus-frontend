@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../../api/axios.js';
+import ContentsCard from '../../components/ContentsCard.jsx';
 import { useFlash, Alert, Badge, FileLink, fmtDate, toInputDate } from '../../components/ui.jsx';
 
 const EMPTY = { title: '', description: '', scheduledDate: '', availableUntil: '' };
 
 // Daily teaching topics. The SERVER decides what a student may see: upcoming topics arrive with only a title and a date.
-export default function Topics({ courseId, canEdit }) {
+export default function Topics({ courseId, canEdit, outline }) {
   const [msg, ok, fail] = useFlash();
   const [topics, setTopics] = useState([]);
   const [form, setForm] = useState(EMPTY);
@@ -68,6 +69,7 @@ export default function Topics({ courseId, canEdit }) {
   return (
     <>
       <Alert msg={msg} />
+      <ContentsCard outline={outline} courseId={courseId} canEdit={canEdit} topicCount={topics.length} onCreated={load} ok={ok} fail={fail} />
       {canEdit && (
         <form className="card" onSubmit={save}>
           <h3>{editId ? 'Edit topic' : 'New topic'}</h3>

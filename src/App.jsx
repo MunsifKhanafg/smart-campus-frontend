@@ -35,6 +35,7 @@ import PayMock from './pages/PayMock.jsx';
 import PayReturn from './pages/PayReturn.jsx';
 import FeeNotices from './pages/FeeNotices.jsx';
 import PromotionFees from './pages/PromotionFees.jsx';
+import FeeReminders from './pages/FeeReminders.jsx';
 import FinanceDesk from './pages/FinanceDesk.jsx';
 import Documents from './pages/Documents.jsx';
 import Admissions from './pages/Admissions.jsx';
@@ -43,6 +44,7 @@ import Insights from './pages/Insights.jsx';
 import DepartmentDetail from './pages/DepartmentDetail.jsx';
 import SemesterDetail from './pages/SemesterDetail.jsx';
 import Attendance from './pages/Attendance.jsx';
+import TeacherAttendance from './pages/TeacherAttendance.jsx';
 import Teachers from './pages/Teachers.jsx';
 import Account from './pages/Account.jsx';
 import Curriculum from './pages/Curriculum.jsx';
@@ -138,6 +140,9 @@ export default function App() {
           <Route element={<ProtectedRoute roles={[STU, TEA, HOD]} />}>
             <Route path="/my-timetable" element={<MyTimetable />} />
           </Route>
+          <Route element={<ProtectedRoute roles={[TEA]} />}>
+            <Route path="/my-attendance" element={<TeacherAttendance />} />
+          </Route>
 
           {/* Student pages */}
           <Route element={<ProtectedRoute roles={[STU]} />}>
@@ -154,6 +159,7 @@ export default function App() {
           <Route element={<ProtectedRoute roles={[HEAD, HOD, FIN]} />}>
             <Route path="/fee-notices" element={<FeeNotices />} />
             <Route path="/promotion-fees" element={<PromotionFees />} />
+            <Route path="/fee-reminders" element={<FeeReminders />} />
             <Route path="/admissions" element={<Admissions />} />
           </Route>
           <Route element={<ProtectedRoute roles={[HEAD, FIN]} />}>

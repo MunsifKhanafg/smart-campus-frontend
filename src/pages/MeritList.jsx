@@ -1,70 +1,75 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import api, { errorMessage } from '../api/axios.js';
 import AdmissionShell from '../components/AdmissionShell.jsx';
 
-// Public merit list. The University Head publishes it in Settings. Applicants are ranked inside each department by merit score.
+// Public merit list. It exists only while the University Head has switched "show the merit list publicly" on.
+// Ranked per department and programme by the percentage the server calculated from the marks.
 export default function MeritList() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [dept, setDept] = useState('');
-  const [search, setSearch] = useState('');
+  const [q, setQ] = useState('');
 
   useEffect(() => {
-    api.get('/public/merit-list', { params: dept ? { department: dept } : {} })
-      .then((r) => { setData(r.data.data); setError(''); })
-      .catch((e) => setError(errorMessage(e)));
-  }, [dept]);
+    api.get('/public/merit-list').then((r) => setData(r.data.data)).catch((e) => setError(errorMessage(e)));
+  }, []);
 
-  const q = search.trim().toLowerCase();
+  const departments = useMemo(() => [...new Set((data?.groups || []).map((g) => g.department))], [data]);
+  const groups = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return (data?.groups || [])
+      .filter((g) => !dept || g.department === dept)
+      .map((g) => ({ ...g, items: needle ? g.items.filter((i) => i.name.toLowerCase().includes(needle) || i.applicationNumber.toLowerCase().includes(needle)) : g.items }))
+      .filter((g) => g.items.length);
+  }, [data, dept, q]);
 
   return (
-    <AdmissionShell title={data?.intake ? `Merit list: ${data.intake}` : 'Merit list'} subtitle="Ranked by merit score inside each department. Applicants called for an interview are marked." wide>
-      {error && <div className="adm-alert warn">{error} <Link to="/track-application">Track my application</Link></div>}
+    <AdmissionShell wide title="Merit list" subtitle={data?.intakeName ? `Intake: ${data.intakeName}` : undefined}>
+      {error && <div className="adm-alert error">{error}</div>}
+      {data && !data.published && <div className="adm-alert info">The merit list has not been published yet. Please check again later.</div>}
 
-      {data && (
+      {data?.published && (
         <>
-          <div className="adm-card" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 220 }}>
-              <label>Department</label>
-              <select value={dept} onChange={(e) => setDept(e.target.value)}>
-                <option value="">All departments</option>
-                {data.departments.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
-              </select>
+          <div className="adm-card">
+            <div className="adm-grid">
+              <div>
+                <label>Department</label>
+                <select value={dept} onChange={(e) => setDept(e.target.value)}>
+                  <option value="">All departments</option>
+                  {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div><label>Search by name or application number</label><input value={q} onChange={(e) => setQ(e.target.value)} /></div>
             </div>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <label>Find by name or application number</label>
-              <input value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
+            <p className="small muted" style={{ marginTop: '.7rem' }}>
+              Ranked by percentage. If two applicants have the same percentage, the one who applied first is ranked higher. "Selected" means the department has accepted the application.
+            </p>
+            <div className="adm-actions"><button type="button" className="adm-btn ghost" onClick={() => window.print()}>Print</button></div>
           </div>
 
-          {!data.departments.length && <div className="adm-card muted">There are no applicants to show yet.</div>}
-          {data.departments.map((d) => {
-            const rows = q ? d.rows.filter((r) => `${r.name} ${r.applicationNumber}`.toLowerCase().includes(q)) : d.rows;
-            if (!rows.length) return null;
-            return (
-              <div className="adm-card" key={d._id}>
-                <h3>{d.name} <span className="muted small">({d.rows.length} applicants)</span></h3>
-                <div className="adm-scroll">
-                  <table className="adm-table">
-                    <thead><tr><th>Rank</th><th>Application no.</th><th>Name</th><th>Programme</th><th>Merit score</th><th /></tr></thead>
-                    <tbody>
-                      {rows.map((r) => (
-                        <tr key={r.applicationNumber} className={r.selected ? 'sel' : ''}>
-                          <td><span className="adm-rank">{r.rank}</span></td>
-                          <td>{r.applicationNumber}</td>
-                          <td>{r.name}</td>
-                          <td>{r.program || '—'}</td>
-                          <td><b>{r.meritScore}</b></td>
-                          <td>{r.selected && <span className="adm-chip">Called for interview</span>}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+          {!groups.length && <div className="adm-alert info">No applicants match.</div>}
+          {groups.map((g) => (
+            <div className="adm-card" key={`${g.department}|${g.programName}`}>
+              <h3>{g.department}{g.programName ? ` · ${g.programName}` : ''} <span className="muted small">({g.items.length} applicants)</span></h3>
+              <div className="adm-scroll">
+                <table className="adm-table">
+                  <thead><tr><th>Rank</th><th>Application no.</th><th>Name</th><th>Marks</th><th>Percentage</th><th /></tr></thead>
+                  <tbody>
+                    {g.items.map((i) => (
+                      <tr key={i.applicationNumber} className={i.selected ? 'sel' : ''}>
+                        <td><span className="adm-rank">{i.rank}</span></td>
+                        <td>{i.applicationNumber}</td>
+                        <td>{i.name}</td>
+                        <td>{i.obtainedMarks} / {i.totalMarks}</td>
+                        <td><b>{i.percentage}%</b></td>
+                        <td>{i.selected && <span className="adm-chip">Selected</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </>
       )}
     </AdmissionShell>

@@ -1,8 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../api/axios.js';
+import RequirementDocs from '../components/RequirementDocs.jsx';
 import { useFlash, Alert, Badge, fmtDate, fmtDateTime, money, downloadSafe } from '../components/ui.jsx';
 
-const METHOD = { gateway: 'Online', bank: 'Bank transfer', manual: 'At the office' };
+const METHOD = { gateway: 'Online card', bank: 'Transfer', manual: 'At the office' };
+const CHANNEL = { bank: 'Bank account', jazzcash: 'JazzCash', easypaisa: 'EasyPaisa' };
+const CHANNEL_ICON = { bank: '🏦', jazzcash: '📱', easypaisa: '📱' };
+const DOC_TEXT = { approved: 'approved', pending: 'uploaded, waiting for review', requires_correction: 'needs correction', rejected: 'rejected', received_at_office: 'received at the office', missing: 'not uploaded yet' };
 
 // "Exam fee 5000 + 2 practicals x 1000 + late fee 500 = 7500" - one amount, one payment.
 function Breakdown({ price, cur }) {
@@ -18,7 +23,9 @@ function Breakdown({ price, cur }) {
 
 const rangeTo = (n) => Array.from({ length: n + 1 }, (_, i) => i);
 
-// Student: fee obligations, fee cart, three ways to pay (online, bank transfer, office), payment history, receipts.
+// Student: fee obligations, fee cart, the requirements form, three ways to pay (online, transfer to a bank / JazzCash / EasyPaisa
+// account, or cash at the office), payment history and receipts. The finance office confirms transfers; the student then gets
+// a notification and an SMS.
 export default function MyFees() {
   const [msg, ok, fail] = useFlash();
   const [fees, setFees] = useState([]);
@@ -27,6 +34,8 @@ export default function MyFees() {
   const [pick, setPick] = useState({}); // practicals chosen for each fee before adding it to the cart
   const [busy, setBusy] = useState(false);
   const [bankOpen, setBankOpen] = useState(false);
+  const [req, setReq] = useState(null); // requirements of the fees in the cart: phone + documents
+  const [phone, setPhone] = useState('');
 
   const load = useCallback(() => {
     api.get('/fees/mine').then((r) => setFees(r.data.data)).catch(fail);
@@ -35,15 +44,26 @@ export default function MyFees() {
   }, [fail]);
   useEffect(() => { load(); }, [load]);
 
+  // The requirements follow the cart: whenever the fees in the cart change, ask the server what they need.
+  const cartKey = cart.items.map((i) => i.notice).join(',');
+  useEffect(() => {
+    if (!cartKey) { setReq(null); return; }
+    api.get('/fees/requirements').then((r) => { setReq(r.data.data); setPhone((p) => p || r.data.data.phone || ''); }).catch(() => setReq(null));
+  }, [cartKey]);
+
   const add = async (f, practicals) => {
     try { setCart((await api.post('/fees/cart', { notice: f._id ?? f.notice, practicals })).data.data); load(); } catch (err) { fail(err); }
   };
   const remove = async (id) => { try { setCart((await api.delete(`/fees/cart/${id}`)).data.data); load(); } catch (err) { fail(err); } };
 
+  const missing = req?.missing || [];
+  const phoneOk = /^(\+92|0092|0)?3\d{9}$/.test(phone.replace(/[\s-]/g, ''));
+  const ready = missing.length === 0 && phoneOk;
+
   const checkout = async () => {
     setBusy(true);
     try {
-      const { data } = await api.post('/payments/checkout');
+      const { data } = await api.post('/payments/checkout', { phone: phone.trim() });
       const url = data.data.checkoutUrl;
       // Only follow a page of this site or an https gateway page. Never a javascript: or other odd address.
       const sameSite = typeof url === 'string' && ((url.startsWith('/') && !url.startsWith('//')) || url.startsWith(window.location.origin));
@@ -81,6 +101,7 @@ export default function MyFees() {
                     {f.title}
                     {f.examination && <div className="muted small">{f.examination.name}</div>}
                     {hasPracticals && <div className="muted small">Each practical adds {money(f.practicalFee, cur)}</div>}
+                    {f.requirements && <div className="muted small">Requirements: {f.requirements}</div>}
                     {f.requiredDocuments?.length > 0 && <div className="muted small">Documents: {f.requiredDocuments.join(', ')}</div>}
                   </td>
                   <td>{f.semester?.name}</td>
@@ -129,18 +150,43 @@ export default function MyFees() {
             </div>
           </div>
         ))}
+
         {cart.items.length > 0 && (
           <>
             <div className="row-between" style={{ marginTop: '.8rem' }}><strong>Total payable (one payment)</strong><strong>{money(cart.total, cur)}</strong></div>
-            <div className="actions" style={{ marginTop: '.6rem' }}>
-              <button className="btn btn-primary" style={{ marginTop: 0 }} disabled={busy || cart.total <= 0} onClick={checkout}>{busy ? 'Opening payment page…' : '💳 Pay online'}</button>
-              <button className="btn" disabled={cart.total <= 0} onClick={() => setBankOpen(!bankOpen)}>🏦 Pay by bank transfer</button>
+
+            {/* Step 1: the requirements. They are saved on the payment, in the finance officer's file. */}
+            <div className="sub-card" style={{ marginTop: '.8rem' }}>
+              <h4>Step 1: requirements</h4>
+              <label>Your mobile number (the payment confirmation SMS is sent here)</label>
+              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0300 1234567" />
+              {phone && !phoneOk && <p className="small" style={{ color: '#b91c1c' }}>Enter a valid mobile number, for example 0300 1234567.</p>}
+              {req?.text && <p className="muted small">Fee requirements: {req.text}</p>}
+              <RequirementDocs documents={req?.documents || []} ok={ok} fail={fail} onUploaded={() => api.get('/fees/requirements').then((r) => setReq(r.data.data))} />
+              {[].map((d) => (
+                <div key={d.type} className="row-between" style={{ padding: '.2rem 0' }}>
+                  <span>📄 {d.type}</span>
+                  <span className={`badge ${d.status === 'missing' ? 'rejected' : d.status === 'approved' ? 'approved' : 'pending'}`}>{DOC_TEXT[d.status] || d.status}</span>
+                </div>
+              ))}
+              {missing.length > 0 && (
+                <div className="alert alert-info" style={{ marginTop: '.5rem' }}>
+                  Upload {missing.join(', ')} above, then pay.
+                </div>
+              )}
+            </div>
+
+            {/* Step 2: pay */}
+            <div className="actions" style={{ marginTop: '.8rem' }}>
+              <button className="btn btn-primary" style={{ marginTop: 0 }} disabled={busy || cart.total <= 0 || !ready} onClick={checkout}>{busy ? 'Opening payment page…' : '💳 Pay online by card'}</button>
+              <button className="btn" disabled={cart.total <= 0 || !ready} onClick={() => setBankOpen(!bankOpen)}>🏦 Pay by bank, JazzCash or EasyPaisa</button>
             </div>
             <p className="muted small">
               The exam fee and the practical fees are added into ONE amount. The server calculates the final price, including any late fee, again when you pay.
-              You can also pay in cash at the finance office with your roll number.
+              When the finance office receives your payment you get a notification and an SMS. You can also pay at the finance office with your roll number:
+              the officer fills in the same requirements for you.
             </p>
-            {bankOpen && <BankTransfer lines={payable} total={cart.total} cur={cur} ok={ok} fail={fail} done={() => { setBankOpen(false); load(); }} />}
+            {bankOpen && <BankTransfer lines={payable} total={cart.total} cur={cur} phone={phone} ok={ok} fail={fail} done={() => { setBankOpen(false); load(); }} />}
           </>
         )}
       </div>
@@ -156,7 +202,10 @@ export default function MyFees() {
                 <td>{p.receiptNumber || '—'}</td>
                 <td className="small">{p.items.map((i) => `${i.title}${i.lateFee ? ` (+${i.lateFee} late)` : ''}`).join(', ')}</td>
                 <td>{money(p.totalAmount, p.currency)}</td>
-                <td>{METHOD[p.method] || p.method}</td>
+                <td>
+                  {p.method === 'bank' ? `${CHANNEL_ICON[p.bank?.channel] || ''} ${CHANNEL[p.bank?.channel] || 'Transfer'}` : METHOD[p.method] || p.method}
+                  {p.method === 'bank' && p.bank?.accountLabel && <div className="muted small">to {p.bank.accountLabel}</div>}
+                </td>
                 <td>
                   {p.method === 'bank' && p.status === 'pending' && <><Badge value="pending" text="waiting for the finance office" /><div className="muted small">Ref {p.bank?.reference}</div></>}
                   {p.method === 'bank' && p.status === 'failed' && <><Badge value="rejected" text="not accepted" /><div className="muted small">{p.bank?.rejectReason || p.failureReason}</div></>}
@@ -173,54 +222,87 @@ export default function MyFees() {
   );
 }
 
-// Way 2: send the money to the university bank account, then tell the finance office the details and attach the slip.
-// Nothing is paid until a finance officer checks the bank statement and presses "Received".
-function BankTransfer({ lines, total, cur, ok, fail, done }) {
-  const [info, setInfo] = useState(null);
-  const [form, setForm] = useState({ bankName: '', reference: '', transferDate: new Date().toISOString().slice(0, 10), note: '' });
+// Way 2: send the money to one of the university's accounts (bank, JazzCash or EasyPaisa), then tell the finance office the details
+// and attach the slip or screenshot. Nothing is paid until a finance officer sees the money and presses Receive.
+function BankTransfer({ lines, total, cur, phone, ok, fail, done }) {
+  const [accounts, setAccounts] = useState(null);
+  const [accountId, setAccountId] = useState('');
+  const [form, setForm] = useState({ bankName: '', senderNumber: '', reference: '', transferDate: new Date().toISOString().slice(0, 10), note: '' });
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { api.get('/payments/bank-info').then((r) => setInfo(r.data.data)).catch(fail); }, [fail]);
+  useEffect(() => {
+    api.get('/payments/bank-info').then((r) => {
+      setAccounts(r.data.data.accounts);
+      if (r.data.data.accounts.length === 1) setAccountId(r.data.data.accounts[0]._id);
+    }).catch(fail);
+  }, [fail]);
+
+  const account = accounts?.find((a) => a._id === accountId);
+  const copy = (text) => navigator.clipboard?.writeText(text).then(() => ok(`Copied: ${text}`)).catch(() => {});
 
   const send = async (e) => {
     e.preventDefault();
-    if (!file) return fail('Please attach a photo or PDF of the bank slip');
+    if (!account) return fail('Choose the account you sent the money to');
+    if (!file) return fail('Please attach a photo or PDF of the slip or the screenshot');
     const fd = new FormData();
     fd.append('items', JSON.stringify(lines.map((i) => ({ notice: i.notice, practicals: i.practicals || 0 }))));
-    Object.entries(form).forEach(([k, v]) => v && fd.append(k, v));
+    fd.append('accountId', account._id);
+    if (account.type === 'bank') fd.append('bankName', form.bankName);
+    else fd.append('senderNumber', form.senderNumber);
+    fd.append('phone', phone.trim());
+    fd.append('reference', form.reference);
+    fd.append('transferDate', form.transferDate);
+    if (form.note) fd.append('note', form.note);
     fd.append('files', file);
     setBusy(true);
     try {
       await api.post('/payments/bank', fd);
-      ok('Your transfer was sent to the finance office. You will get a notification when it is received.');
+      ok('Your payment details were sent to the finance office. You will get a notification and an SMS when it is received.');
       done();
     } catch (err) { fail(err); } finally { setBusy(false); }
   };
 
-  const hasAccount = info && (info.accountNumber || info.iban);
   return (
     <form className="sub-card" onSubmit={send} style={{ marginTop: '.8rem' }}>
-      <h4>Pay by bank transfer</h4>
-      {!info && <p className="muted">Loading bank details…</p>}
-      {info && !hasAccount && <div className="alert alert-info">The university has not added its bank account yet. Please pay online or at the office.</div>}
-      {hasAccount && (
-        <div className="tiles" style={{ marginBottom: '.6rem' }}>
-          {[['Bank', info.bankName], ['Account title', info.accountTitle], ['Account number', info.accountNumber], ['IBAN', info.iban], ['Branch', info.branch]]
-            .filter(([, v]) => v).map(([k, v]) => <div className="tile" key={k}><div><b style={{ fontSize: '1rem' }}>{v}</b><span>{k}</span></div></div>)}
-        </div>
+      <h4>Step 2: pay into a university account</h4>
+      {!accounts && <p className="muted">Loading the accounts…</p>}
+      {accounts && !accounts.length && <div className="alert alert-info">The finance office has not added a payment account yet. Please pay online by card or at the office.</div>}
+
+      {accounts?.length > 0 && (
+        <>
+          <p>Send exactly <b>{money(total, cur)}</b> to one of these accounts, then fill in the details below.</p>
+          <div className="dept-grid">
+            {accounts.map((a) => (
+              <div key={a._id} className="dept-card" role="button" tabIndex={0} onClick={() => setAccountId(a._id)} onKeyDown={(e) => e.key === 'Enter' && setAccountId(a._id)}
+                style={{ cursor: 'pointer', outline: accountId === a._id ? '2px solid #4f46e5' : 'none' }}>
+                <span className="code">{CHANNEL_ICON[a.type]} {CHANNEL[a.type]}</span>
+                <h3>{a.title}</h3>
+                <div><b style={{ fontSize: '1.1rem' }}>{a.number}</b> <button type="button" className="link-btn small" onClick={(e) => { e.stopPropagation(); copy(a.number); }}>copy</button></div>
+                {a.bankName && <div className="meta">{a.bankName}{a.branch ? ` · ${a.branch}` : ''}</div>}
+                {a.iban && <div className="meta">IBAN {a.iban} <button type="button" className="link-btn small" onClick={(e) => { e.stopPropagation(); copy(a.iban); }}>copy</button></div>}
+                {a.instructions && <div className="muted small">{a.instructions}</div>}
+              </div>
+            ))}
+          </div>
+
+          {account && (
+            <>
+              <div className="form-grid" style={{ marginTop: '.8rem' }}>
+                {account.type === 'bank'
+                  ? <div><label>Name of your bank</label><input required minLength={2} value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="e.g. HBL, Meezan" /></div>
+                  : <div><label>Your {CHANNEL[account.type]} mobile number (you sent the money from it)</label><input required value={form.senderNumber} onChange={(e) => setForm({ ...form, senderNumber: e.target.value })} placeholder="0300 1234567" /></div>}
+                <div><label>{account.type === 'bank' ? 'Transaction / reference number' : 'Transaction ID (TID)'}</label><input required minLength={3} value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} /></div>
+                <div><label>Date you paid</label><input type="date" required value={form.transferDate} onChange={(e) => setForm({ ...form, transferDate: e.target.value })} /></div>
+                <div><label>Photo or PDF of the slip / screenshot</label><input type="file" required accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={(e) => setFile(e.target.files[0])} /></div>
+              </div>
+              <label>Note (optional)</label>
+              <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+              <button className="btn btn-primary" disabled={busy}>{busy ? 'Sending…' : 'Send to the finance office'}</button>
+            </>
+          )}
+        </>
       )}
-      {info?.instructions && <p className="muted small">{info.instructions}</p>}
-      <p>Send exactly <b>{money(total, cur)}</b>, then fill in the details below.</p>
-      <div className="form-grid">
-        <div><label>Your bank</label><input required minLength={2} value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="e.g. HBL, Meezan" /></div>
-        <div><label>Transaction / reference number</label><input required minLength={3} value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} /></div>
-        <div><label>Transfer date</label><input type="date" required value={form.transferDate} onChange={(e) => setForm({ ...form, transferDate: e.target.value })} /></div>
-        <div><label>Photo or PDF of the slip</label><input type="file" required accept=".pdf,.png,.jpg,.jpeg,.webp" onChange={(e) => setFile(e.target.files[0])} /></div>
-      </div>
-      <label>Note (optional)</label>
-      <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-      <button className="btn btn-primary" disabled={busy || !hasAccount}>{busy ? 'Sending…' : 'Send to the finance office'}</button>
     </form>
   );
 }

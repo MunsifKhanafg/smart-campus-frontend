@@ -76,7 +76,7 @@ function Programs({ isHead, ok, fail }) {
       tone: 'danger',
       title: `Correct "${p.name}" from the original file?`,
       message:
-        'The file is read again and every semester gets exactly the subjects of its Scheme of Studies (for example 5 subjects in semesters 7 and 8, not the long elective option lists).\n\n'
+        'The file is read again. Every semester gets the subjects of its Scheme of Studies (for example 5 in semesters 7 and 8) and, listed separately as "elective options", the elective courses of that semester. The HOD offers only the electives needed.\n\n'
         + 'Classes already created from this programme are updated too: wrong classes without records are deleted and the missing ones are created, ready for the HOD to assign teachers. Subjects typed in by hand are replaced.',
       confirmText: 'Correct programme',
     });
@@ -136,12 +136,12 @@ function Programs({ isHead, ok, fail }) {
             <div className="cols-2 mt">
               {[...p.semesters].sort((a, b) => a.number - b.number).map((s) => (
                 <div className="sub-card" key={s.number}>
-                  <h4>Semester {s.number} <span className="muted small">· {s.subjects.reduce((n, x) => n + x.creditHours, 0)} credit hours</span></h4>
+                  <h4>Semester {s.number} <span className="muted small">· {s.subjects.filter((x) => !x.elective).reduce((n, x) => n + x.creditHours, 0)} credit hours{s.subjects.some((x) => x.elective) ? ` · ${s.subjects.filter((x) => x.elective).length} elective options` : ''}</span></h4>
                   <table>
                     <tbody>
-                      {s.subjects.map((x) => (
+                      {[...s.subjects.filter((x) => !x.elective), ...s.subjects.filter((x) => x.elective)].map((x) => (
                         <Fragment key={x.code}>
-                          <tr><td><b>{x.code}</b></td><td>{x.title}</td><td className="right">{x.creditHours} cr</td></tr>
+                          <tr><td><b>{x.code}</b></td><td>{x.title}{x.elective && <span className="badge pending" style={{ marginLeft: 6 }}>elective</span>}</td><td className="right">{x.creditHours} cr</td></tr>
                           {x.outline && <tr><td /><td colSpan={2} className="muted small" style={{ whiteSpace: 'pre-wrap' }}>{x.outline}</td></tr>}
                         </Fragment>
                       ))}
@@ -209,7 +209,7 @@ function ImportPanel({ ok, fail, done }) {
       semesters: p.semesters
         .map((s) => ({
           number: Number(s.number),
-          subjects: s.subjects.filter((x) => x.code?.trim() || x.title?.trim()).map((x) => ({ code: x.code || '', title: x.title || '', creditHours: Number(x.creditHours) || 3, outline: x.outline || '' })),
+          subjects: s.subjects.filter((x) => x.code?.trim() || x.title?.trim()).map((x) => ({ code: x.code || '', title: x.title || '', creditHours: Number(x.creditHours) || 3, outline: x.outline || '', ...(x.elective ? { elective: true } : {}) })),
         }))
         .filter((s) => s.subjects.length),
     })),
@@ -245,7 +245,7 @@ function ImportPanel({ ok, fail, done }) {
           message: 'The classes made from the old curriculum were brought in line with the new one.',
           details: [
             `${r.classes.removed} old class(es) deleted`,
-            `${r.classes.created} new class(es) created, waiting for a teacher`,
+            `${r.classes.notOffered || 0} subject(s) without a class are not offered. Each HOD chooses which subjects to offer on the Assign Teachers page`,
             ...r.classes.kept.map((k) => `${k.code} (${k.semester}) was kept because it has ${k.because}`),
           ],
           confirmText: 'OK',
@@ -355,7 +355,7 @@ function ImportPanel({ ok, fail, done }) {
                   </div>
                   <div className="table-wrap">
                     <table>
-                      <thead><tr><th style={{ width: 130 }}>Code</th><th>Subject title</th><th style={{ width: 90 }}>Credits</th>{reviewing && <th />}</tr></thead>
+                      <thead><tr><th style={{ width: 130 }}>Code</th><th>Subject title</th><th style={{ width: 90 }}>Credits</th><th style={{ width: 80 }}>Elective</th>{reviewing && <th />}</tr></thead>
                       <tbody>
                         {s.subjects.map((x, xi) => (
                           <tr key={xi}>
@@ -369,6 +369,7 @@ function ImportPanel({ ok, fail, done }) {
                               )}
                             </td>
                             <td><input type="number" min={1} max={6} disabled={!reviewing} value={x.creditHours ?? 3} onChange={(e) => edit((ps) => { ps[pi].semesters[si].subjects[xi].creditHours = e.target.value; })} /></td>
+                            <td><input type="checkbox" title="An elective option: the HOD offers only some of these" disabled={!reviewing} checked={!!x.elective} onChange={(e) => edit((ps) => { ps[pi].semesters[si].subjects[xi].elective = e.target.checked; })} /></td>
                             {reviewing && <td><button className="btn btn-small btn-danger" onClick={() => edit((ps) => { ps[pi].semesters[si].subjects.splice(xi, 1); })}>x</button></td>}
                           </tr>
                         ))}

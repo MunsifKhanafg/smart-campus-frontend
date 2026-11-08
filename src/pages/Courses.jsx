@@ -32,6 +32,8 @@ export default function Courses() {
   const [assigning, setAssigning] = useState(null); // course
   const [pick, setPick] = useState('');
   const [busy, setBusy] = useState(false);
+  const [selectMode, setSelectMode] = useState(false); // HOD: tick several courses, then delete / archive them together
+  const [picked, setPicked] = useState([]);
 
   const load = useCallback(async () => {
     try {
@@ -114,6 +116,75 @@ export default function Courses() {
     try { await api.patch(`/courses/${c._id}/status`, { status }); load(); } catch (err) { fail(err); }
   };
 
+  // Removes a class from this semester. The server refuses when it already has attendance, marks, assignments ...
+  const remove = async (c) => {
+    if (!window.confirm(`Delete ${c.code} ${c.title} (section ${c.section}) from ${semester?.name}?\n\nIts timetable classes and student enrolments for this class are removed too. If it came from the BS curriculum, the subject stays in the curriculum and you can offer it again later.\n\nIf it already has attendance, marks or assignments it cannot be deleted. Archive it instead.`)) return;
+    try { await api.delete(`/courses/${c._id}`); ok(`${c.code} deleted`); load(); } catch (err) { fail(err); }
+  };
+
+  // ---------- bulk: pick the 5-6 subjects a semester really teaches and remove the others ----------
+  const semCourses = bySemester.get(selected) || [];
+  const togglePick = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const stopSelecting = () => { setSelectMode(false); setPicked([]); };
+
+  // mode 'selected' = remove the ticked courses; mode 'others' = keep the ticked courses, remove everything else.
+  const bulkDelete = async (mode) => {
+    const chosen = semCourses.filter((c) => (mode === 'selected' ? picked.includes(c._id) : !picked.includes(c._id)));
+    if (!chosen.length) return;
+    const head = mode === 'selected'
+      ? `Delete these ${chosen.length} course(s) from ${semester?.name}?`
+      : `Keep your ${picked.length} ticked course(s) and DELETE the other ${chosen.length} from ${semester?.name}?`;
+    if (!window.confirm(`${head}\n\n${chosen.map((c) => `• ${c.code} ${c.title} (Sec ${c.section})`).join('\n')}\n\nTheir timetable classes and enrolments are removed too. Subjects from the BS curriculum stay in the curriculum, so you can offer them again later. A course that already has attendance, marks or assignments is NOT deleted.`)) return;
+    setBusy(true);
+    let done = 0;
+    const blocked = [];
+    for (const c of chosen) {
+      try { await api.delete(`/courses/${c._id}`); done += 1; } catch { blocked.push(c); }
+    }
+    setBusy(false);
+    setPicked(mode === 'selected' ? blocked.map((c) => c._id) : picked);
+    if (blocked.length) fail(`${done} deleted. ${blocked.length} could not be deleted because they already have records (attendance, marks, assignments...): ${blocked.map((c) => c.code).join(', ')}. Use "Archive" for those: it hides them and keeps their history.`);
+    else { ok(`${done} course(s) deleted from ${semester?.name}`); if (mode === 'others') stopSelecting(); }
+    load();
+  };
+
+  const bulkArchive = async () => {
+    const chosen = semCourses.filter((c) => picked.includes(c._id) && c.status === 'active');
+    if (!chosen.length) return;
+    if (!window.confirm(`Archive ${chosen.length} course(s)? They are hidden from students and teachers but their records are kept.`)) return;
+    setBusy(true);
+    let done = 0;
+    for (const c of chosen) { try { await api.patch(`/courses/${c._id}/status`, { status: 'archived' }); done += 1; } catch { /* skipped */ } }
+    setBusy(false);
+    ok(`${done} course(s) archived`);
+    setPicked([]);
+    load();
+  };
+
+  // ---------- curriculum: official subject names + course contents ----------
+  const syncSemester = async () => {
+    if (!window.confirm(`Get the official subject names and course contents from the BS curriculum for every class of ${semester?.name}?\n\nClasses that already have their own contents keep them. Classes are matched by code, then by subject name.`)) return;
+    setBusy(true);
+    try {
+      const { data } = await api.post('/courses/sync-curriculum', { semester: selected });
+      const s = data.data;
+      const parts = [`${s.updated} class(es) updated`];
+      if (s.alreadyComplete) parts.push(`${s.alreadyComplete} already complete`);
+      if (s.noContents.length) parts.push(`${s.noContents.length} matched but the curriculum has no contents for: ${s.noContents.join(', ')}`);
+      if (s.notFound.length) parts.push(`not found in the curriculum: ${s.notFound.join(', ')}`);
+      (s.notFound.length ? fail : ok)(parts.join('. ') + '.');
+      load();
+    } catch (err) { fail(err); } finally { setBusy(false); }
+  };
+
+  const syncOne = async (c) => {
+    try {
+      const { data } = await api.post(`/courses/${c._id}/sync-curriculum`, {});
+      ok(`${c.code}: ${data.message}`);
+      load();
+    } catch (err) { fail(err); }
+  };
+
   // ---------- teacher assignment ----------
   const openAssign = (c) => { clear(); setAssigning(c); setPick(c.teacher?._id || ''); };
 
@@ -184,6 +255,14 @@ export default function Courses() {
             <div className="actions">
               <input style={{ width: 230 }} placeholder="Search course or teacher..." value={search} onChange={(e) => setSearch(e.target.value)} />
               {isHod && isOpen(semester) && <button className="btn btn-primary inline" onClick={() => openForm(null)}>+ Add course</button>}
+              {isHod && semCourses.length > 0 && (
+                <button className="btn" disabled={busy} onClick={syncSemester} title="Copy the official subject names and the course contents from the BS curriculum">📚 Fill from curriculum</button>
+              )}
+              {isHod && semCourses.length > 0 && (
+                <button className={`btn ${selectMode ? 'btn-primary' : ''}`} onClick={() => (selectMode ? stopSelecting() : setSelectMode(true))}>
+                  {selectMode ? 'Done selecting' : '☑ Select courses'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -209,11 +288,35 @@ export default function Courses() {
             </form>
           )}
 
+          {selectMode && isHod && (
+            <div className="card mt" style={{ borderColor: 'var(--primary-light)' }}>
+              <div className="row-between">
+                <div>
+                  <b>{picked.length} of {semCourses.length} selected</b>
+                  <div className="muted small">Tick the subjects, then choose what to do. Tip: tick the 5 or 6 subjects this semester really teaches and press "Keep selected, delete the rest".</div>
+                </div>
+                <div className="actions">
+                  <button className="btn btn-small" onClick={() => setPicked(semCourses.map((c) => c._id))}>Select all</button>
+                  <button className="btn btn-small" onClick={() => setPicked(semCourses.filter((c) => !c.teacher).map((c) => c._id))}>Select without teacher</button>
+                  <button className="btn btn-small" onClick={() => setPicked([])}>Clear</button>
+                </div>
+              </div>
+              <div className="actions" style={{ marginTop: '.75rem' }}>
+                <button className="btn btn-danger" disabled={busy || !picked.length} onClick={() => bulkDelete('selected')}>🗑 Delete selected ({picked.length})</button>
+                <button className="btn btn-danger" disabled={busy || !picked.length || picked.length === semCourses.length} onClick={() => bulkDelete('others')}>Keep selected, delete the rest ({Math.max(semCourses.length - picked.length, 0)})</button>
+                <button className="btn" disabled={busy || !picked.length} onClick={bulkArchive}>Archive selected</button>
+              </div>
+            </div>
+          )}
+
           {!list.length && <div className="card muted mt">{search ? 'No course matches your search.' : 'No courses in this semester yet.'}</div>}
           <div className="cx-subjects" style={{ marginTop: '.9rem' }}>
             {list.map((c, i) => (
-              <div key={c._id} className="cx-subj" style={{ ...colorAt(semIndex + i), opacity: c.status === 'archived' ? 0.6 : 1 }}>
+              <div key={c._id} className="cx-subj" style={{ ...colorAt(semIndex + i), opacity: c.status === 'archived' ? 0.6 : 1, ...(picked.includes(c._id) ? { outline: '3px solid var(--primary-light)', outlineOffset: 2 } : {}) }}>
                 <div className="cx-subj-head">
+                  {selectMode && isHod && (
+                    <input type="checkbox" aria-label={`Select ${c.code}`} style={{ width: 20, height: 20, marginRight: '.6rem', flex: 'none' }} checked={picked.includes(c._id)} onChange={() => togglePick(c._id)} />
+                  )}
                   <div className="grow">
                     <div className="code">{c.code} · Section {c.section}</div>
                     <h4>{c.title}</h4>
@@ -222,6 +325,7 @@ export default function Courses() {
                 </div>
                 <div className="cx-subj-body">
                   {c.status === 'archived' && <Badge value="archived" />}
+                  {c.status === 'active' && !c.outline && <span className="cx-chip bad" style={{ alignSelf: 'flex-start' }}>No course contents yet</span>}
                   {!isTeacher && (
                     <div className={`cx-class ${c.teacher ? '' : 'none'}`} style={c.teacher ? colorFor(c.teacher.name) : undefined}>
                       <span className={`cx-av ${c.teacher ? '' : 'empty'}`}>{c.teacher ? initials(c.teacher.name) : '?'}</span>
@@ -234,7 +338,9 @@ export default function Courses() {
                     <Link className="btn btn-small btn-primary" to={`/courses/${c._id}`}>Open</Link>
                     {isHod && c.status === 'active' && <button className="btn btn-small" onClick={() => openAssign(c)}>{c.teacher ? 'Change teacher' : 'Assign teacher'}</button>}
                     {isHod && c.status === 'active' && <button className="btn btn-small" onClick={() => openForm(c)}>Edit</button>}
-                    {isHod && <button className="btn btn-small btn-danger" onClick={() => toggleArchive(c)}>{c.status === 'active' ? 'Archive' : 'Activate'}</button>}
+                    {isHod && c.status === 'active' && !c.outline && <button className="btn btn-small" onClick={() => syncOne(c)}>📚 From curriculum</button>}
+                    {isHod && <button className="btn btn-small" onClick={() => toggleArchive(c)}>{c.status === 'active' ? 'Archive' : 'Activate'}</button>}
+                    {isHod && <button className="btn btn-small btn-danger" onClick={() => remove(c)}>Delete</button>}
                   </div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, Fragment } from 'react';
 import { useSelector } from 'react-redux';
 import api from '../api/axios.js';
 import { useFlash, Alert, Badge, fmtDate } from '../components/ui.jsx';
@@ -19,6 +19,8 @@ export default function TeachingBoard() {
   const [pick, setPick] = useState(null); // { subject, section, teacher, existing, hasTeacher }
   const [busy, setBusy] = useState(false);
   const [sectionsText, setSectionsText] = useState('A');
+  const [chosen, setChosen] = useState([]); // subject codes ticked to be offered
+  const [swap, setSwap] = useState(null); // { row, to, keepTeacher } while replacing a subject
 
   useEffect(() => {
     api.get('/semesters').then((r) => {
@@ -60,6 +62,44 @@ export default function TeachingBoard() {
     } catch (err) { fail(err); } finally { setBusy(false); }
   };
 
+  const sectionList = () => [...new Set(sectionsText.split(/[\s,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean))];
+
+  // Offer ONLY the ticked subjects (for example 5 of the 21 subjects of semester 7). The others get no class at all.
+  const offer = async () => {
+    const sections = sectionList();
+    if (!sections.length) return fail('Enter at least one section, for example A');
+    setBusy(true);
+    try {
+      const { data: res } = await api.post('/teaching/offer', { semester, program, codes: chosen, sections });
+      ok(`${res.message}${res.data.studentsEnrolled ? ` · ${res.data.studentsEnrolled} student enrolments` : ''}`);
+      setChosen([]);
+      load();
+    } catch (err) { fail(err); } finally { setBusy(false); }
+  };
+
+  const withdraw = async (row) => {
+    if (!window.confirm(`Stop offering ${row.subject.code} ${row.subject.title}?\n\nIts class leaves Courses and the timetable. If it already has attendance or marks it is archived and the records are kept.`)) return;
+    setBusy(true);
+    try {
+      const { data: res } = await api.post('/teaching/withdraw', { semester, program, code: row.subject.code });
+      const kept = res.data.archived.length ? ` · ${res.data.archived.length} class(es) archived because they have records` : '';
+      ok(`${res.message}${kept}`);
+      load();
+    } catch (err) { fail(err); } finally { setBusy(false); }
+  };
+
+  const replace = async () => {
+    setBusy(true);
+    try {
+      const { data: res } = await api.post('/teaching/replace', { semester, program, from: swap.row.subject.code, to: swap.to, keepTeacher: swap.keepTeacher });
+      ok(res.message);
+      setSwap(null);
+      load();
+    } catch (err) { fail(err); } finally { setBusy(false); }
+  };
+
+  const toggleChosen = (code) => setChosen((c) => (c.includes(code) ? c.filter((x) => x !== code) : [...c, code]));
+
   // Stores every subject of this semester as a class in one step. Teachers are chosen afterwards.
   const generate = async () => {
     const sections = [...new Set(sectionsText.split(/[\s,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean))];
@@ -80,8 +120,16 @@ export default function TeachingBoard() {
     const rows = data?.rows || [];
     const classes = rows.flatMap((r) => r.classes.filter((c) => c.status !== 'archived'));
     const assigned = classes.filter((c) => c.teacher).length;
-    return { subjects: rows.length, classes: classes.length, assigned, missing: classes.length - assigned, percent: classes.length ? Math.round((assigned / classes.length) * 100) : 0 };
+    const notOffered = rows.filter((r) => !r.classes.some((c) => c.status !== 'archived')).length;
+    return { subjects: rows.length, classes: classes.length, assigned, notOffered, missing: classes.length - assigned, percent: classes.length ? Math.round((assigned / classes.length) * 100) : 0 };
   }, [data]);
+
+  // Compulsory subjects first, then the elective options the HOD may pick from.
+  const sortedRows = useMemo(() => {
+    const rows = data?.rows || [];
+    return [...rows.filter((r) => !r.subject.elective), ...rows.filter((r) => r.subject.elective)];
+  }, [data]);
+  const coreCount = sortedRows.filter((r) => !r.subject.elective).length;
 
   const pickedSubjectIndex = pick && data ? Math.max(0, data.rows.findIndex((r) => r.subject.code === pick.subject.subject.code)) : 0;
 
@@ -127,8 +175,9 @@ export default function TeachingBoard() {
           <h3 className="cx-title"><span className="num">2</span> {data.program.name} · Semester {data.semester.number}</h3>
 
           <div className="cx-strip">
-            <div className="item"><b>{totals.subjects}</b><span>Subjects</span></div>
-            <div className="item"><b>{totals.classes}</b><span>Classes created</span></div>
+            <div className="item"><b>{totals.subjects}</b><span>Subjects in curriculum</span></div>
+            <div className="item"><b>{totals.subjects - totals.notOffered}</b><span>Offered (have a class)</span></div>
+            <div className="item"><b style={{ color: '#64748b' }}>{totals.notOffered}</b><span>Not offered</span></div>
             <div className="item"><b style={{ color: '#16a34a' }}>{totals.assigned}</b><span>With a teacher</span></div>
             <div className="item"><b style={{ color: totals.missing ? '#dc2626' : '#16a34a' }}>{totals.missing}</b><span>Without a teacher</span></div>
             <div className="bar">
@@ -144,25 +193,59 @@ export default function TeachingBoard() {
                   <label>Sections</label>
                   <input value={sectionsText} placeholder="A, B" onChange={(e) => setSectionsText(e.target.value.toUpperCase())} />
                 </div>
-                <button className="btn btn-primary inline" disabled={busy} onClick={generate}>
-                  {busy ? 'Creating…' : `Create all ${data.rows.length} classes of semester ${data.semester.number}`}
+                <button className="btn btn-primary inline" disabled={busy || !chosen.length} onClick={offer}>
+                  {busy ? 'Working…' : `Offer the ${chosen.length} ticked subject${chosen.length === 1 ? '' : 's'}`}
                 </button>
+                <button className="btn inline" disabled={busy || !coreCount} onClick={generate}>Offer all {coreCount} compulsory</button>
               </div>
               <p className="muted small" style={{ marginBottom: 0 }}>
-                Step 1: one click stores every subject below as a class (code, name and credit hours come from the curriculum). Step 2: choose a teacher on each subject card.
-                Classes that already exist are not changed, and students already placed in this semester and section are enrolled automatically.
+                A semester lists the compulsory subjects and then <b>elective options</b> (for example semester 7 has 5 subjects plus about 18 elective options). You offer only some of them. <b>Tick the subjects you will teach</b> and press "Offer the ticked subjects":
+                only those become classes, so only they appear under Courses, on the timetable and to students. The others stay in the curriculum and are simply not offered.
+                Later you can <b>replace</b> an offered subject by another one, or <b>stop offering</b> it: its class is removed from the timetable too.
+                Students already placed in this semester and section are enrolled automatically.
               </p>
+            </div>
+          )}
+
+          {swap && isHod && (
+            <div className="card">
+              <h3 style={{ marginTop: 0 }}>Replace {swap.row.subject.code} {swap.row.subject.title}</h3>
+              <div className="form-grid">
+                <div>
+                  <label>Replace it with</label>
+                  <select value={swap.to} onChange={(e) => setSwap({ ...swap, to: e.target.value })}>
+                    <option value="">Choose a subject that is not offered...</option>
+                    {data.rows.filter((r) => !r.classes.some((c) => c.status !== 'archived')).map((r) => <option key={r.subject.code} value={r.subject.code}>{r.subject.code} · {r.subject.title} ({r.subject.creditHours} cr)</option>)}
+                  </select>
+                </div>
+              </div>
+              <label className="check"><input type="checkbox" checked={swap.keepTeacher} onChange={(e) => setSwap({ ...swap, keepTeacher: e.target.checked })} /> Give the new subject to the same teacher</label>
+              <p className="muted small">The old class is removed from Courses and from the timetable. You can then schedule the new class on the timetable.</p>
+              <div className="actions">
+                <button className="btn btn-primary" disabled={busy || !swap.to} onClick={replace}>Replace subject</button>
+                <button className="btn btn-ghost" onClick={() => setSwap(null)}>Cancel</button>
+              </div>
             </div>
           )}
 
           {!data.rows.length && <div className="card muted">This programme has no subjects for semester {data.semester.number}. The semester number of {data.semester.name} must match a semester of the curriculum.</div>}
 
           <div className="cx-subjects">
-            {data.rows.map((row, i) => (
-              <div key={row.subject.code} className="cx-subj" style={colorAt(i + 1)}>
+            {sortedRows.map((row, i) => (
+              <Fragment key={row.subject.code}>
+              {i === coreCount && coreCount > 0 && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <h3 className="cx-title" style={{ marginBottom: 0 }}>Elective options</h3>
+                  <p className="muted small" style={{ margin: '.2rem 0 0' }}>Not shown in Courses or on the timetable until you offer them. Use "Replace" on a "Specialization Elective" slot to swap it for one of these.</p>
+                </div>
+              )}
+              <div className="cx-subj" style={colorAt(i + 1)}>
                 <div className="cx-subj-head">
+                  {isHod && !row.classes.some((c) => c.status !== 'archived') && (
+                    <input type="checkbox" title="Tick to offer this subject" checked={chosen.includes(row.subject.code)} onChange={() => toggleChosen(row.subject.code)} style={{ width: 20, height: 20, marginRight: '.5rem' }} />
+                  )}
                   <div className="grow">
-                    <div className="code">{row.subject.code}</div>
+                    <div className="code">{row.subject.code}{row.subject.elective && <span className="cx-tag" style={{ marginLeft: 8 }}>Elective option</span>}</div>
                     <h4>{row.subject.title}</h4>
                   </div>
                   <span className="cx-credit">{row.subject.creditHours} cr</span>
@@ -182,15 +265,24 @@ export default function TeachingBoard() {
                       )}
                     </div>
                   ))}
-                  {!row.classes.length && <div className="cx-class none"><span className="cx-av empty">–</span><div className="grow" style={{ color: '#b91c1c' }}>No class created yet</div></div>}
+                  {!row.classes.length && <div className="cx-class none"><span className="cx-av empty">–</span><div className="grow" style={{ color: '#64748b' }}>Not offered{isHod ? ' (tick it above to offer it)' : ''}</div></div>}
 
                   {isHod && (
                     <div className="cx-actions">
-                      <button className="btn btn-small btn-primary" onClick={() => choose(row, null)}>{row.classes.length ? '+ Another section' : 'Select teacher'}</button>
+                      {row.classes.some((c) => c.status !== 'archived') ? (
+                        <>
+                          <button className="btn btn-small btn-primary" onClick={() => choose(row, null)}>+ Another section</button>
+                          <button className="btn btn-small" onClick={() => { setSwap({ row, to: '', keepTeacher: true }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Replace</button>
+                          <button className="btn btn-small btn-danger" onClick={() => withdraw(row)}>Stop offering</button>
+                        </>
+                      ) : (
+                        <button className="btn btn-small" onClick={() => toggleChosen(row.subject.code)}>{chosen.includes(row.subject.code) ? 'Untick' : 'Offer this subject'}</button>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
+              </Fragment>
             ))}
           </div>
           {data.otherClasses > 0 && <p className="muted small">{data.otherClasses} other class(es) in this semester were created manually and are not part of the curriculum. Manage them under Courses.</p>}
