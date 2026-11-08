@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import api from '../api/axios.js';
 import { useFlash, Alert } from '../components/ui.jsx';
 import WeeklyTimetable, { todayName } from '../components/WeeklyTimetable.jsx';
+import TimetableGrid from '../components/TimetableGrid.jsx';
 
 // Student or teacher: their own classes from the PUBLISHED timetable only.
 export default function MyTimetable() {
@@ -34,7 +35,7 @@ export default function MyTimetable() {
       {slots && !slots.length && (
         <div className="empty-state"><div className="big">🗓️</div>No published timetable yet. You will be notified when your department publishes it.</div>
       )}
-      {slots?.length > 0 && <WeeklyTimetable slots={slots} who={user.role === 'teacher' ? 'teacher' : 'student'} />}
+      {slots?.length > 0 && <TimetableGrid slots={slots} who={user.role === 'teacher' ? 'teacher' : 'student'} />}
     </>
   );
 }

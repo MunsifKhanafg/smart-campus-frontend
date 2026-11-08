@@ -1,0 +1,34 @@
+/* Classic timetable grid: one row per day, one column per period. See components/TimetableGrid.jsx */
+
+.tg-wrap { overflow-x: auto; border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow); background: #fff; }
+.tg { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.tg th, .tg td { border-bottom: 1px solid #e8ebf7; border-right: 1px solid #e8ebf7; padding: .45rem; vertical-align: top; }
+.tg tr:last-child th, .tg tr:last-child td { border-bottom: 0; }
+.tg th:last-child, .tg td:last-child { border-right: 0; }
+.tg thead th { background: linear-gradient(180deg, #4f46e5, #4338ca); color: #fff; text-align: center; padding: .65rem .4rem; border-color: rgba(255, 255, 255, .18); }
+.tg .tg-corner { width: 118px; background: linear-gradient(180deg, #312e81, #1e1b4b); }
+.tg-no { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; opacity: .85; }
+.tg-time { display: block; font-size: .92rem; font-weight: 800; }
+.tg-day { width: 118px; text-align: left; background: #eef0ff; color: #3730a3; font-size: .95rem; vertical-align: middle !important; }
+.tg-day span { display: block; font-weight: 800; }
+.tg-day small { display: block; color: #64708a; font-weight: 600; font-size: .72rem; }
+.tg tr.today .tg-day { background: linear-gradient(135deg, #4f46e5, #0d9488); color: #fff; }
+.tg tr.today .tg-day small { color: rgba(255, 255, 255, .9); }
+.tg tr.today td { background: #f4f8ff; }
+.tg-empty { background-image: repeating-linear-gradient(135deg, transparent 0 8px, rgba(100, 112, 138, .06) 8px 9px); }
+
+.tg-box { position: relative; display: flex; flex-direction: column; gap: .12rem; color: #fff; border-radius: 12px; padding: .5rem .6rem; margin-bottom: .35rem; background: linear-gradient(135deg, var(--c1), var(--c2)); box-shadow: 0 4px 10px color-mix(in srgb, var(--c2) 28%, transparent); }
+.tg-box:last-child { margin-bottom: 0; }
+.tg-box b { font-size: .88rem; letter-spacing: .02em; }
+.tg-title { font-size: .78rem; line-height: 1.25; font-weight: 600; }
+.tg-box small { font-size: .7rem; opacity: .95; }
+.tg-box.done { opacity: .55; }
+.tg-box.live { box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--c1); }
+.tg-live { position: absolute; top: 6px; right: 6px; background: #fff; color: #dc2626; font-size: .58rem; font-weight: 800; letter-spacing: .06em; padding: 0 .4rem; border-radius: 99px; animation: wt-pulse 1.4s infinite; }
+
+.tt-all { margin-top: .8rem; display: grid; gap: .3rem; font-size: .85rem; }
+.tt-all div { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem .7rem; border-radius: 10px; background: #f6f8ff; border: 1px solid var(--border); }
+.tt-all .bad { color: #b91c1c; }
+.tt-all .good { color: #15803d; }
+
+@media print { .tg-wrap { box-shadow: none; } }

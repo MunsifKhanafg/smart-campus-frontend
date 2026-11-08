@@ -18,6 +18,7 @@ import './schedule.css';
 import './home.css';
 import './home2.css';
 import './finance.css';
+import './timetable.css';
 import './theme.css';
 import './logo.css';
 import './modern.css';

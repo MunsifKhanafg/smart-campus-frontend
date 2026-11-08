@@ -34,6 +34,8 @@ export default function Courses() {
   const [busy, setBusy] = useState(false);
   const [selectMode, setSelectMode] = useState(false); // HOD: tick several courses, then delete / archive them together
   const [picked, setPicked] = useState([]);
+  const [match, setMatch] = useState(null); // plan returned by "Match to curriculum"
+  const [replaceContents, setReplaceContents] = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -198,12 +200,42 @@ export default function Courses() {
     } catch (err) { fail(err); } finally { setBusy(false); }
   };
 
+  // ---------- make this semester match the curriculum (fix wrong / duplicate / missing courses) ----------
+  const previewMatch = async () => {
+    clear();
+    setBusy(true);
+    try { setMatch((await api.post('/teaching/match', { semester: selected, replaceContents })).data.data); } catch (err) { fail(err); window.scrollTo({ top: 0, behavior: 'smooth' }); } finally { setBusy(false); }
+  };
+  const applyMatch = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.post('/teaching/match', { semester: selected, apply: true, replaceContents });
+      const r = data.data.result;
+      ok(`${data.message}${r.archived.length ? `. ${r.archived.length} class(es) were archived instead of deleted because they have records` : ''}.`);
+      setMatch(null);
+      load();
+    } catch (err) { fail(err); } finally { setBusy(false); }
+  };
+  const replaceAllContents = async () => {
+    if (!window.confirm(`Replace the course contents of EVERY class of ${semester?.name} with the contents of the BS curriculum?\n\nThis overwrites contents that were typed by hand.`)) return;
+    setBusy(true);
+    try {
+      const { data } = await api.post('/courses/sync-curriculum', { semester: selected, overwrite: true });
+      const s = data.data;
+      (s.notFound.length ? fail : ok)(`${s.updated} class(es) updated from the curriculum.${s.notFound.length ? ` Not found in the curriculum: ${s.notFound.join(', ')}.` : ''}`);
+      load();
+    } catch (err) { fail(err); } finally { setBusy(false); }
+  };
+  const replaceOneContents = async (c) => {
+    try { const { data } = await api.post(`/courses/${c._id}/sync-curriculum`, { overwrite: true }); ok(`${c.code}: ${data.message}`); load(); } catch (err) { fail(err); }
+  };
+
   const SemesterCard = ({ s }) => {
     const n = activeCount(s._id);
     const missing = unassignedCount(s._id);
     return (
       <button type="button" style={colorAt(ordered.findIndex((x) => x._id === s._id))} className={`cx-sem ${s._id === selected ? 'on' : ''}`}
-        onClick={() => { setSelected(s._id); setSearch(''); setEditing(null); }}>
+        onClick={() => { setSelected(s._id); setSearch(''); setEditing(null); setMatch(null); }}>
         <b>{s.name}</b>
         <small>{isHead && s.department?.code ? `${s.department.code} · ` : ''}{s.academicYear} · Semester {s.number}</small>
         <small>{fmtDate(s.startDate)} to {fmtDate(s.endDate)}</small>
@@ -255,8 +287,12 @@ export default function Courses() {
             <div className="actions">
               <input style={{ width: 230 }} placeholder="Search course or teacher..." value={search} onChange={(e) => setSearch(e.target.value)} />
               {isHod && isOpen(semester) && <button className="btn btn-primary inline" onClick={() => openForm(null)}>+ Add course</button>}
+              {isHod && isOpen(semester) && <button className="btn" disabled={busy} onClick={previewMatch} title="Compare this semester with the BS curriculum and fix wrong, duplicate and missing courses">✅ Match to curriculum</button>}
               {isHod && semCourses.length > 0 && (
                 <button className="btn" disabled={busy} onClick={syncSemester} title="Copy the official subject names and the course contents from the BS curriculum">📚 Fill from curriculum</button>
+              )}
+              {isHod && semCourses.length > 0 && (
+                <button className="btn" disabled={busy} onClick={replaceAllContents} title="Overwrite the course contents of every class with the curriculum's">↻ Replace all contents</button>
               )}
               {isHod && semCourses.length > 0 && (
                 <button className={`btn ${selectMode ? 'btn-primary' : ''}`} onClick={() => (selectMode ? stopSelecting() : setSelectMode(true))}>
@@ -286,6 +322,53 @@ export default function Courses() {
                 <button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
               </div>
             </form>
+          )}
+
+          {match && isHod && (
+            <div className="card mt" style={{ borderLeft: '5px solid #4f46e5' }}>
+              <div className="row-between">
+                <div>
+                  <h3 style={{ margin: 0 }}>{semester.name} should have {match.expected} subject{match.expected === 1 ? '' : 's'}</h3>
+                  <div className="muted small">From the curriculum: {match.program.name}, semester {match.semesterNumber}. Nothing changes until you press "Fix this semester".</div>
+                </div>
+                <button className="btn btn-ghost" onClick={() => setMatch(null)}>Close</button>
+              </div>
+
+              {match.remove.length === 0 && match.add.length === 0 && match.fix.length === 0 && (
+                <div className="alert alert-success mt">This semester already matches the curriculum. {match.keep.length} subject(s) are correct.</div>
+              )}
+
+              {match.keep.length > 0 && (
+                <div className="mt"><b>✓ Correct ({match.keep.length})</b>
+                  <div className="muted small">{match.keep.map((k) => `${k.code} ${k.title}${k.section ? ` (Sec ${k.section})` : ''}`).join(' · ')}</div>
+                </div>
+              )}
+              {match.fix.length > 0 && (
+                <div className="mt"><b>✎ Will be corrected ({match.fix.length})</b>
+                  {match.fix.map((f, i) => <div key={i} className="small">{f.code} {f.title} → <b>{f.to.code} {f.to.title}</b> ({f.changes.join(', ')})</div>)}
+                </div>
+              )}
+              {match.remove.length > 0 && (
+                <div className="mt"><b style={{ color: '#b91c1c' }}>🗑 Will be removed ({match.remove.length})</b>
+                  {match.remove.map((r, i) => (
+                    <div key={i} className="small">{r.code} {r.title} (Sec {r.section}){r.teacher ? ` · teacher ${r.teacher}` : ''} — {r.reason}.{' '}
+                      {r.archive ? <b>Has {r.because}, so it is archived, not deleted.</b> : 'Its timetable classes are removed too.'}</div>
+                  ))}
+                </div>
+              )}
+              {match.add.length > 0 && (
+                <div className="mt"><b style={{ color: '#15803d' }}>＋ Will be added ({match.add.length})</b>
+                  {match.add.map((a, i) => <div key={i} className="small">{a.code} {a.title} ({a.creditHours} cr) for section{match.sections.length > 1 ? 's' : ''} {match.sections.join(', ')}</div>)}
+                  <div className="muted small">Elective options are never added here. Offer the ones you need on the Assign Teachers page.</div>
+                </div>
+              )}
+
+              <label className="check mt"><input type="checkbox" checked={replaceContents} onChange={(e) => { setReplaceContents(e.target.checked); setMatch(null); }} /> Also replace the course contents with the curriculum's (changing this closes the plan)</label>
+              <div className="actions">
+                <button className="btn btn-primary" disabled={busy} onClick={applyMatch}>{busy ? 'Working…' : 'Fix this semester'}</button>
+                <button className="btn" onClick={() => setMatch(null)}>Cancel</button>
+              </div>
+            </div>
           )}
 
           {selectMode && isHod && (
@@ -339,6 +422,7 @@ export default function Courses() {
                     {isHod && c.status === 'active' && <button className="btn btn-small" onClick={() => openAssign(c)}>{c.teacher ? 'Change teacher' : 'Assign teacher'}</button>}
                     {isHod && c.status === 'active' && <button className="btn btn-small" onClick={() => openForm(c)}>Edit</button>}
                     {isHod && c.status === 'active' && !c.outline && <button className="btn btn-small" onClick={() => syncOne(c)}>📚 From curriculum</button>}
+                    {isHod && c.status === 'active' && c.outline && <button className="btn btn-small" title="Overwrite this class's contents with the curriculum's" onClick={() => replaceOneContents(c)}>↻ Contents</button>}
                     {isHod && <button className="btn btn-small" onClick={() => toggleArchive(c)}>{c.status === 'active' ? 'Archive' : 'Activate'}</button>}
                     {isHod && <button className="btn btn-small btn-danger" onClick={() => remove(c)}>Delete</button>}
                   </div>

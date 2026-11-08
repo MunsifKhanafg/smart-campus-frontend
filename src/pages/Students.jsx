@@ -20,6 +20,30 @@ export default function Students() {
   const [form, setForm] = useState(null);
   const [selected, setSelected] = useState([]);
   const [target, setTarget] = useState('');
+  const [editing, setEditing] = useState(null); // HOD: correcting a typing mistake in a student's details
+
+  const startEdit = (p) => {
+    setEditing({
+      id: p._id, label: `${p.user?.name} (${p.rollNumber})`,
+      name: p.user?.name || '', email: p.user?.email || '', phone: p.user?.phone || '',
+      rollNumber: p.rollNumber || '', section: p.section || '',
+      original: { name: p.user?.name || '', email: p.user?.email || '', phone: p.user?.phone || '', rollNumber: p.rollNumber || '', section: p.section || '' },
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    const body = {};
+    ['name', 'email', 'phone', 'rollNumber', 'section'].forEach((k) => { if (editing[k] !== editing.original[k] && editing[k] !== '') body[k] = editing[k]; });
+    if (!Object.keys(body).length) return fail('Nothing was changed');
+    try {
+      await api.put(`/students/${editing.id}`, body);
+      ok(`Saved.${body.email ? ' The student must sign in with the new email.' : ''}`);
+      setEditing(null);
+      load();
+    } catch (err) { fail(err); }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -129,6 +153,24 @@ export default function Students() {
         </form>
       )}
 
+      {editing && (
+        <form className="card" onSubmit={saveEdit}>
+          <h3>Correct details: {editing.label}</h3>
+          <p className="muted small">Fix a typing mistake here instead of deleting the student. The email is the login name, so it must be unique. The roll number must be unique too.</p>
+          <div className="form-grid">
+            <div><label>Full name</label><input required minLength={2} value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
+            <div><label>Email (login)</label><input required type="email" value={editing.email} onChange={(e) => setEditing({ ...editing, email: e.target.value })} /></div>
+            <div><label>Mobile number</label><input value={editing.phone} onChange={(e) => setEditing({ ...editing, phone: e.target.value })} /></div>
+            <div><label>Roll number</label><input required minLength={2} value={editing.rollNumber} onChange={(e) => setEditing({ ...editing, rollNumber: e.target.value })} /></div>
+            <div><label>Section</label><input maxLength={10} value={editing.section} onChange={(e) => setEditing({ ...editing, section: e.target.value })} /></div>
+          </div>
+          <div className="actions">
+            <button className="btn btn-primary">Save corrections</button>
+            <button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
+          </div>
+        </form>
+      )}
+
       <div className="card filters">
         <input placeholder="Search name, email, roll..." value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
         {!isHod && (
@@ -170,6 +212,7 @@ export default function Students() {
                 <td><Badge value={p.status} /></td>
                 <td className="actions">
                   <Link className="btn btn-small" to={`/students/${p.user?._id}/record`}>Record</Link>
+                  {isHod && <button className="btn btn-small" onClick={() => startEdit(p)}>Edit</button>}
                   {p.status === 'active'
                     ? <button className="btn btn-small btn-danger" onClick={() => setStatus(p, 'suspended')}>Suspend</button>
                     : <button className="btn btn-small" onClick={() => setStatus(p, 'active')}>Activate</button>}

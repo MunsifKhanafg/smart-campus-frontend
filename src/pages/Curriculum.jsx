@@ -71,6 +71,22 @@ function Programs({ isHead, ok, fail }) {
     } catch (err) { fail(err); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   };
 
+  // A subject in the wrong semester: move it, then the classes of the wrong semester are cleaned up.
+  const move = async (p, subject, from, to) => {
+    if (!to) return;
+    const yes = await confirm({
+      title: `Move ${subject.code} to semester ${to}?`,
+      message: `${subject.title} is now in semester ${from}. It will be part of semester ${to} instead. A class that was already made for it in semester ${from} is removed if it has no records yet; the HOD then offers it in semester ${to}.`,
+      confirmText: 'Move subject',
+    });
+    if (!yes) return;
+    try {
+      const { data } = await api.post(`/curriculum/programs/${p._id}/move-subject`, { code: subject.code, toSemester: Number(to) });
+      ok(data.message);
+      load();
+    } catch (err) { fail(err); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  };
+
   const resync = async (p) => {
     const yes = await confirm({
       tone: 'danger',
@@ -141,7 +157,19 @@ function Programs({ isHead, ok, fail }) {
                     <tbody>
                       {[...s.subjects.filter((x) => !x.elective), ...s.subjects.filter((x) => x.elective)].map((x) => (
                         <Fragment key={x.code}>
-                          <tr><td><b>{x.code}</b></td><td>{x.title}{x.elective && <span className="badge pending" style={{ marginLeft: 6 }}>elective</span>}</td><td className="right">{x.creditHours} cr</td></tr>
+                          <tr>
+                            <td><b>{x.code}</b></td>
+                            <td>{x.title}{x.elective && <span className="badge pending" style={{ marginLeft: 6 }}>elective</span>}</td>
+                            <td className="right">{x.creditHours} cr</td>
+                            {isHead && (
+                              <td>
+                                <select style={{ width: 'auto', padding: '.2rem' }} value="" title="Wrong semester? Move this subject" onChange={(e) => move(p, x, s.number, e.target.value)}>
+                                  <option value="">Move to...</option>
+                                  {Array.from({ length: 8 }, (_, i) => i + 1).filter((n) => n !== s.number).map((n) => <option key={n} value={n}>Semester {n}</option>)}
+                                </select>
+                              </td>
+                            )}
+                          </tr>
                           {x.outline && <tr><td /><td colSpan={2} className="muted small" style={{ whiteSpace: 'pre-wrap' }}>{x.outline}</td></tr>}
                         </Fragment>
                       ))}

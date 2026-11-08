@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../api/axios.js';
 import { colorFor, colorAt } from './palette.js';
 import WeeklyTimetable, { todayName, slotState, byTime } from './WeeklyTimetable.jsx';
+import TimetableGrid from './TimetableGrid.jsx';
 
 const STATE_LABEL = { live: 'In progress', upcoming: 'Upcoming', done: 'Finished' };
 
@@ -79,7 +80,7 @@ export default function TeacherDashboard() {
 
       <section className="td-section">
         <div className="td-head"><h3>My weekly timetable</h3></div>
-        {slots.length ? <WeeklyTimetable slots={slots} who="teacher" /> : (
+        {slots.length ? <TimetableGrid slots={slots} who="teacher" /> : (
           <div className="empty-state">Your timetable will appear here after your HOD publishes it.</div>
         )}
       </section>
