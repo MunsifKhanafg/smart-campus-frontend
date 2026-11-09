@@ -5,6 +5,7 @@ import api, { errorMessage } from '../api/axios.js';
 import { useFlash, Alert, Badge, fmtDate } from '../components/ui.jsx';
 import TeacherPicker from '../components/TeacherPicker.jsx';
 import { colorAt, colorFor, initials } from '../components/palette.js';
+import { useConfirm } from '../components/ConfirmModal.jsx';
 
 const EMPTY = { title: '', code: '', creditHours: 3, section: 'A', description: '', outline: '' };
 const isOpen = (s) => ['upcoming', 'active'].includes(s.status);
@@ -18,6 +19,7 @@ export default function Courses() {
   const isTeacher = user.role === 'teacher';
 
   const [msg, ok, fail, clear] = useFlash();
+  const confirm = useConfirm();
   const [semesters, setSemesters] = useState([]);
   const [courses, setCourses] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -114,14 +116,46 @@ export default function Courses() {
 
   const toggleArchive = async (c) => {
     const status = c.status === 'active' ? 'archived' : 'active';
-    if (!window.confirm(`${status === 'archived' ? 'Archive' : 'Re-activate'} ${c.code}?`)) return;
+    if (!(await confirm({
+      tone: status === 'archived' ? 'danger' : 'primary',
+      title: `${status === 'archived' ? 'Archive' : 'Re-activate'} ${c.code}?`,
+      message: status === 'archived'
+        ? `${c.code} ${c.title} (section ${c.section}) is hidden from students and teachers. Its records are kept and you can activate it again later.`
+        : `${c.code} ${c.title} (section ${c.section}) becomes active again.`,
+      confirmText: status === 'archived' ? 'Archive' : 'Re-activate',
+    }))) return;
     try { await api.patch(`/courses/${c._id}/status`, { status }); load(); } catch (err) { fail(err); }
   };
 
-  // Removes a class from this semester. The server refuses when it already has attendance, marks, assignments ...
+  // Deleting a subject. The page first reads what is inside it:
+  //   nothing inside      -> a simple confirmation
+  //   attendance, assignments, quizzes ... -> a warning that lists them; only "Yes, delete everything" removes the subject WITH them
+  //   saved results       -> refused (results are official records), the HOD can archive the subject instead
   const remove = async (c) => {
-    if (!window.confirm(`Delete ${c.code} ${c.title} (section ${c.section}) from ${semester?.name}?\n\nIts timetable classes and student enrolments for this class are removed too. If it came from the BS curriculum, the subject stays in the curriculum and you can offer it again later.\n\nIf it already has attendance, marks or assignments it cannot be deleted. Archive it instead.`)) return;
-    try { await api.delete(`/courses/${c._id}`); ok(`${c.code} deleted`); load(); } catch (err) { fail(err); }
+    let info;
+    try { info = (await api.get(`/courses/${c._id}/delete-preview`)).data.data; } catch (err) { return fail(err); }
+    if (info.blocked) return fail(info.blocked);
+    const yes = await confirm(info.hasRecords
+      ? {
+        tone: 'danger',
+        title: `${c.code} already has records. Delete everything?`,
+        message: `${c.code} ${c.title} (section ${c.section}) contains the data below. If you continue, the subject AND all of this data are deleted permanently. This cannot be undone.`,
+        details: info.items.map((i) => `${i.count} ${i.label}`),
+        confirmText: 'Yes, delete everything',
+        cancelText: 'No, keep it',
+      }
+      : {
+        tone: 'danger',
+        title: `Delete ${c.code} ${c.title}?`,
+        message: `It has no attendance, assignments or marks. Its timetable classes and student enrolments for section ${c.section} of ${semester?.name} are removed too. If it came from the BS curriculum, the subject stays in the curriculum and you can offer it again later.`,
+        confirmText: 'Delete',
+      });
+    if (!yes) return;
+    try {
+      await api.delete(`/courses/${c._id}`, { params: info.hasRecords ? { force: 'true' } : {} });
+      ok(`${c.code} deleted${info.hasRecords ? ' together with its records' : ''}`);
+      load();
+    } catch (err) { fail(err); }
   };
 
   // ---------- bulk: pick the 5-6 subjects a semester really teaches and remove the others ----------
@@ -130,22 +164,45 @@ export default function Courses() {
   const stopSelecting = () => { setSelectMode(false); setPicked([]); };
 
   // mode 'selected' = remove the ticked courses; mode 'others' = keep the ticked courses, remove everything else.
+  // Every subject is checked first. Those with records (attendance, assignments, quizzes ...) are listed in the window, and
+  // one "Yes, delete everything" removes them together with their records. Subjects in saved results are skipped.
   const bulkDelete = async (mode) => {
     const chosen = semCourses.filter((c) => (mode === 'selected' ? picked.includes(c._id) : !picked.includes(c._id)));
     if (!chosen.length) return;
+    setBusy(true);
+    let infos;
+    try {
+      infos = await Promise.all(chosen.map(async (c) => ({ c, info: (await api.get(`/courses/${c._id}/delete-preview`)).data.data })));
+    } catch (err) { setBusy(false); return fail(err); }
+    setBusy(false);
+
+    const skipped = infos.filter((x) => x.info.blocked);
+    const todo = infos.filter((x) => !x.info.blocked);
+    if (!todo.length) return fail(`Nothing was deleted. ${skipped.map((x) => x.info.blocked).join(' ')}`);
+    const withData = todo.filter((x) => x.info.hasRecords);
+
     const head = mode === 'selected'
-      ? `Delete these ${chosen.length} course(s) from ${semester?.name}?`
-      : `Keep your ${picked.length} ticked course(s) and DELETE the other ${chosen.length} from ${semester?.name}?`;
-    if (!window.confirm(`${head}\n\n${chosen.map((c) => `• ${c.code} ${c.title} (Sec ${c.section})`).join('\n')}\n\nTheir timetable classes and enrolments are removed too. Subjects from the BS curriculum stay in the curriculum, so you can offer them again later. A course that already has attendance, marks or assignments is NOT deleted.`)) return;
+      ? `Delete these ${todo.length} course(s) from ${semester?.name}?`
+      : `Keep your ${picked.length} ticked course(s) and DELETE the other ${todo.length} from ${semester?.name}?`;
+    const yes = await confirm({
+      tone: 'danger',
+      title: withData.length ? `${withData.length} of these subjects already have records. Delete everything?` : head,
+      message: `${withData.length ? `${head}\n\n` : ''}Their timetable classes and enrolments are removed too.${withData.length ? ' The records listed below are deleted permanently with their subject. This cannot be undone.' : ' Subjects from the BS curriculum stay in the curriculum.'}${skipped.length ? `\n\nSkipped (part of saved results): ${skipped.map((x) => x.c.code).join(', ')}.` : ''}`,
+      details: todo.map(({ c, info }) => `${c.code} ${c.title} (Sec ${c.section})${info.hasRecords ? ` has ${info.items.map((i) => `${i.count} ${i.label}`).join(', ')}` : ''}`),
+      confirmText: withData.length ? 'Yes, delete everything' : 'Delete',
+      cancelText: 'No, keep them',
+    });
+    if (!yes) return;
+
     setBusy(true);
     let done = 0;
-    const blocked = [];
-    for (const c of chosen) {
-      try { await api.delete(`/courses/${c._id}`); done += 1; } catch { blocked.push(c); }
+    const failed = [];
+    for (const { c, info } of todo) {
+      try { await api.delete(`/courses/${c._id}`, { params: info.hasRecords ? { force: 'true' } : {} }); done += 1; } catch { failed.push(c); }
     }
     setBusy(false);
-    setPicked(mode === 'selected' ? blocked.map((c) => c._id) : picked);
-    if (blocked.length) fail(`${done} deleted. ${blocked.length} could not be deleted because they already have records (attendance, marks, assignments...): ${blocked.map((c) => c.code).join(', ')}. Use "Archive" for those: it hides them and keeps their history.`);
+    setPicked(mode === 'selected' ? [...failed, ...skipped.map((x) => x.c)].map((c) => c._id) : picked);
+    if (failed.length || skipped.length) fail(`${done} deleted. Not deleted: ${[...failed, ...skipped.map((x) => x.c)].map((c) => c.code).join(', ')}.${skipped.length ? ' Subjects in saved results can only be archived.' : ''}`);
     else { ok(`${done} course(s) deleted from ${semester?.name}`); if (mode === 'others') stopSelecting(); }
     load();
   };
@@ -153,7 +210,13 @@ export default function Courses() {
   const bulkArchive = async () => {
     const chosen = semCourses.filter((c) => picked.includes(c._id) && c.status === 'active');
     if (!chosen.length) return;
-    if (!window.confirm(`Archive ${chosen.length} course(s)? They are hidden from students and teachers but their records are kept.`)) return;
+    if (!(await confirm({
+      tone: 'danger',
+      title: `Archive ${chosen.length} course(s)?`,
+      message: 'They are hidden from students and teachers. Their records are kept and you can activate them again later.',
+      details: chosen.map((c) => `${c.code} ${c.title} (Sec ${c.section})`),
+      confirmText: 'Archive',
+    }))) return;
     setBusy(true);
     let done = 0;
     for (const c of chosen) { try { await api.patch(`/courses/${c._id}/status`, { status: 'archived' }); done += 1; } catch { /* skipped */ } }
@@ -165,7 +228,11 @@ export default function Courses() {
 
   // ---------- curriculum: official subject names + course contents ----------
   const syncSemester = async () => {
-    if (!window.confirm(`Get the official subject names and course contents from the BS curriculum for every class of ${semester?.name}?\n\nClasses that already have their own contents keep them. Classes are matched by code, then by subject name.`)) return;
+    if (!(await confirm({
+      title: `Fill ${semester?.name} from the curriculum?`,
+      message: 'Every class gets the official subject name and the course contents of the BS curriculum. Classes that already have their own contents keep them. Classes are matched by code, then by subject name.',
+      confirmText: 'Fill from curriculum',
+    }))) return;
     setBusy(true);
     try {
       const { data } = await api.post('/courses/sync-curriculum', { semester: selected });
@@ -217,7 +284,12 @@ export default function Courses() {
     } catch (err) { fail(err); } finally { setBusy(false); }
   };
   const replaceAllContents = async () => {
-    if (!window.confirm(`Replace the course contents of EVERY class of ${semester?.name} with the contents of the BS curriculum?\n\nThis overwrites contents that were typed by hand.`)) return;
+    if (!(await confirm({
+      tone: 'danger',
+      title: `Replace ALL course contents of ${semester?.name}?`,
+      message: 'The course contents of every class are replaced with the contents of the BS curriculum. Contents that were typed by hand are overwritten.',
+      confirmText: 'Replace all',
+    }))) return;
     setBusy(true);
     try {
       const { data } = await api.post('/courses/sync-curriculum', { semester: selected, overwrite: true });

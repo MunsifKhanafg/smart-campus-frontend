@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api, { errorMessage } from '../api/axios.js';
 import TeacherEditPanel from '../components/TeacherEditPanel.jsx';
+import { useConfirm } from '../components/ConfirmModal.jsx';
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1, 3) : '');
 
@@ -10,6 +11,9 @@ const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1, 3) : '');
 export default function TeacherDetail() {
   const { teacherId } = useParams();
   const me = useSelector((s) => s.auth.user);
+  const confirm = useConfirm();
+  const navigate = useNavigate();
+  const [notice, setNotice] = useState('');
   const [teacher, setTeacher] = useState(null);
   const [courses, setCourses] = useState([]);
   const [slots, setSlots] = useState([]);
@@ -52,6 +56,37 @@ export default function TeacherDetail() {
   const totalStudents = Object.values(sizes).reduce((a, b) => a + b, 0);
   // The University Head can edit teachers and HODs; an HOD can edit the teachers of their own department (the server checks it too).
   const canEdit = me.role === 'university_head' ? teacher.role !== 'university_head' : me.role === 'hod' && teacher.role === 'teacher';
+  // Only a plain teacher can be deleted here (an HOD must be replaced first). The server checks the department again.
+  const canDelete = teacher.role === 'teacher' && ['university_head', 'hod'].includes(me.role);
+
+  // Reads what the teacher is connected to first. No connections: a simple question. Subjects, attendance, assignments ...:
+  // a window that lists them and asks "Yes, delete". Only then is the account deleted (what the teacher wrote stays in the
+  // students' records, and the subjects simply lose their teacher).
+  const removeTeacher = async () => {
+    setNotice('');
+    let info;
+    try { info = (await api.get(`/users/${teacher._id}/delete-preview`)).data.data; } catch (e) { return setNotice(errorMessage(e)); }
+    const yes = await confirm(info.hasRecords
+      ? {
+        tone: 'danger',
+        title: `${teacher.name} is connected to records. Delete the account?`,
+        message: 'The account is deleted and cannot be restored. Their subjects stay but have no teacher until you assign a new one, their classes leave the timetable, and what they posted stays in the students\' records. They are connected to:',
+        details: info.items.map((i) => `${i.count} ${i.label}`),
+        confirmText: 'Yes, delete the teacher',
+        cancelText: 'No, keep the account',
+      }
+      : {
+        tone: 'danger',
+        title: `Delete ${teacher.name}?`,
+        message: 'This teacher has no subjects or records. The account is deleted and cannot be restored.',
+        confirmText: 'Delete',
+      });
+    if (!yes) return;
+    try {
+      await api.delete(`/users/${teacher._id}`, { params: info.hasRecords ? { force: 'true' } : {} });
+      navigate('/teachers');
+    } catch (e) { setNotice(errorMessage(e)); }
+  };
 
   return (
     <>
@@ -66,7 +101,9 @@ export default function TeacherDetail() {
           <p>{teacher.department?.name || 'No department'} · {teacher.email}</p>
         </div>
         <span className={`badge ${teacher.isActive ? 'active' : 'archived'}`}>{teacher.isActive ? 'active' : 'inactive'}</span>
+        {canDelete && <button className="btn btn-danger" style={{ marginLeft: '.5rem' }} onClick={removeTeacher}>🗑 Delete teacher</button>}
       </div>
+      {notice && <div className="alert alert-error">{notice}</div>}
 
       {canEdit && (
         <TeacherEditPanel

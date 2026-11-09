@@ -31,6 +31,13 @@ export function ConfirmProvider({ children }) {
     []
   );
 
+  // Any leftover window.alert("...") in the app opens this window instead of the browser's plain popup.
+  useEffect(() => {
+    const native = window.alert;
+    window.alert = (text) => { confirm({ title: 'Notice', message: String(text ?? ''), tone: 'info', confirmText: 'OK', cancelText: null }); };
+    return () => { window.alert = native; };
+  }, [confirm]);
+
   const close = useCallback((result) => {
     resolver.current?.(result);
     resolver.current = null;
@@ -51,7 +58,7 @@ export function useConfirm() {
   return ctx;
 }
 
-const ICON = { danger: '⚠️', primary: '❓', info: 'ℹ️' };
+const ICON = { danger: '⚠️', primary: '❓', info: 'ℹ️', success: '✅', error: '⛔' };
 
 function ModalView({ dlg, onClose }) {
   const {

@@ -19,6 +19,15 @@
         } catch (e) {}
       })();
     </script>
+    <script>
+      // Show the university's own name in the tab at once (it is remembered from the last visit). The app keeps it up to date afterwards.
+      (function () {
+        try {
+          var b = JSON.parse(localStorage.getItem('sc_branding') || '{}');
+          if (b.universityName) document.title = b.universityName;
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

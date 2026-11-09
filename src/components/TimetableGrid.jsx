@@ -18,8 +18,8 @@ export default function TimetableGrid({ slots = [], who = 'student' }) {
 
   const sub = (s) => {
     if (who === 'teacher') return [s.semester?.name, s.course?.section && `Sec ${s.course.section}`].filter(Boolean).join(' · ');
-    if (who === 'hod') return [s.teacher?.name, s.course?.section && `Sec ${s.course.section}`].filter(Boolean).join(' · ');
-    return s.teacher?.name || '';
+    if (who === 'hod') return [s.teacher?.name || '⚠️ No teacher assigned', s.course?.section && `Sec ${s.course.section}`].filter(Boolean).join(' · ');
+    return s.teacher?.name || '⚠️ No teacher assigned yet'; // the teacher of this subject was removed: the class stays until a new one is chosen
   };
 
   if (!slots.length) return null;
@@ -59,7 +59,7 @@ export default function TimetableGrid({ slots = [], who = 'student' }) {
                             <b>{s.course?.code}</b>
                             <span className="tg-title">{s.course?.title}</span>
                             <small>🚪 {s.room || '—'}</small>
-                            {sub(s) && <small>{who === 'student' ? '👤 ' : ''}{sub(s)}</small>}
+                            {sub(s) && <small>{who === 'student' && s.teacher ? '👤 ' : ''}{sub(s)}</small>}
                           </div>
                         );
                       })}

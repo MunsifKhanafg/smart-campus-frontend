@@ -1,0 +1,40 @@
+/* Message and confirmation windows: success, error and the confirm window all share this look (see ui.jsx Alert, ConfirmModal.jsx). */
+.modal-backdrop { backdrop-filter: blur(5px); background: rgba(8, 15, 32, 0.58); }
+.modal {
+  max-width: 460px;
+  padding: 1.7rem 1.6rem 1.5rem;
+  border-radius: 20px;
+  border-top: 5px solid var(--primary-light, #2563eb);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.modal.modal-success { border-top-color: #16a34a; }
+.modal.modal-error { border-top-color: #dc2626; }
+
+.modal-icon { width: 68px; height: 68px; font-size: 1.9rem; margin-bottom: 0.3rem; box-shadow: 0 0 0 9px rgba(37, 99, 235, 0.07); }
+.modal-icon.success { background: rgba(22, 163, 74, 0.14); box-shadow: 0 0 0 9px rgba(22, 163, 74, 0.07); }
+.modal-icon.error, .modal-icon.danger { background: rgba(220, 38, 38, 0.12); box-shadow: 0 0 0 9px rgba(220, 38, 38, 0.06); }
+.modal-icon.info { box-shadow: 0 0 0 9px rgba(14, 165, 233, 0.08); }
+
+.modal h3 { font-size: 1.25rem; letter-spacing: -0.01em; margin: 0.4rem 0 0.5rem; }
+.modal-message { color: var(--muted, #475569); line-height: 1.55; overflow-wrap: anywhere; }
+.modal-details { max-height: 30vh; overflow-y: auto; border: 1px solid rgba(100, 116, 139, 0.25); line-height: 1.5; }
+.modal-details li + li { margin-top: 0.2rem; }
+
+.modal-actions { margin-top: 1.1rem; }
+.modal-actions .btn { min-width: 125px; padding: 0.65rem 1.3rem; border-radius: 11px; font-weight: 700; }
+
+/* The green window closes by itself: this bar shows the time that is left. */
+.modal-timer {
+  height: 4px;
+  margin: 1.2rem -1.6rem -1.5rem;
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+  transform-origin: left;
+  animation: modal-timer 3.5s linear forwards;
+  border-radius: 0 0 20px 20px;
+}
+@keyframes modal-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+[data-theme='dark'] .modal { background: var(--surface, #111a2e); border-left: 1px solid var(--border, #243049); border-right: 1px solid var(--border, #243049); border-bottom: 1px solid var(--border, #243049); }
+[data-theme='dark'] .modal-message { color: var(--muted, #9fb0c8); }
+@media (max-width: 520px) { .modal-actions { flex-direction: column-reverse; } .modal-actions .btn { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .modal, .modal-backdrop, .modal-timer { animation: none; } }

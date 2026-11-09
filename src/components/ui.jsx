@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import api, { errorMessage } from '../api/axios.js';
 
 export const fmtDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '—');
@@ -15,8 +15,44 @@ export function useFlash() {
   return [msg, ok, fail, clear];
 }
 
+// The message window used by every page: <Alert msg={msg} />.
+//   success: a green window that closes by itself after a few seconds (or with OK / Enter / Esc / a click outside)
+//   error:   a red window that stays until it is closed, so the reason is never missed
+// It opens again for every NEW message, also when the text is the same as before.
 export function Alert({ msg }) {
-  return msg?.text ? <div className={`alert alert-${msg.type}`}>{msg.text}</div> : null;
+  const [closed, setClosed] = useState(null);
+  const open = !!msg?.text && closed !== msg;
+  const close = useCallback(() => setClosed(msg), [msg]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape' || e.key === 'Enter') close(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const timer = msg.type === 'success' ? setTimeout(close, 3500) : null;
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+      if (timer) clearTimeout(timer);
+    };
+  }, [open, msg, close]);
+
+  if (!open) return null;
+  const error = msg.type === 'error';
+  return (
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}>
+      <div className={`modal ${error ? 'modal-error' : 'modal-success'}`} role={error ? 'alertdialog' : 'dialog'} aria-modal="true">
+        <div className={`modal-icon ${error ? 'error' : 'success'}`}>{error ? '\u26d4' : '\u2705'}</div>
+        <h3>{error ? 'Something went wrong' : 'Done'}</h3>
+        <p className="modal-message">{msg.text}</p>
+        <div className="modal-actions">
+          <button type="button" autoFocus className={`btn ${error ? 'btn-danger' : 'btn-primary'}`} onClick={close}>OK</button>
+        </div>
+        {!error && <div className="modal-timer" />}
+      </div>
+    </div>
+  );
 }
 
 export function Badge({ value, text }) {

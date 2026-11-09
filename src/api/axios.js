@@ -34,7 +34,12 @@ api.interceptors.response.use(
 export const errorMessage = (err) => {
   // No response at all: the server is not running, crashed on start, or the browser blocked the call (CORS).
   if (err.request && !err.response) {
-    return `Cannot reach the server at ${API_URL}. Start it with "npm run dev" in the server folder and read the red message in that terminal.`;
+    const local = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(API_URL);
+    if (local) {
+      return `Cannot reach the server at ${API_URL}. Start it with "npm run dev" in the server folder and read the red message in that terminal.`;
+    }
+    // Deployed (for example on Vercel). "No response" almost always means the browser BLOCKED the call (CORS) or the server function crashed.
+    return `Cannot reach the server at ${API_URL}. 1) Open ${API_URL}/api/health in a new tab: if it does not show "Smart Campus API running", the server deployment has a problem (Vercel > Logs). 2) If it does, the server setting CLIENT_URL must be exactly ${window.location.origin} (no / at the end). Change it in the server's Vercel project, then redeploy.`;
   }
   const d = err.response?.data;
   if (d?.details?.length) {

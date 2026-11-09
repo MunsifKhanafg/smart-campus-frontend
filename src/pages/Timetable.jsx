@@ -380,7 +380,7 @@ export default function Timetable() {
                       <td><b>{s.startTime} - {s.endTime}</b><div className="muted small">{hm(toMin(s.endTime) - toMin(s.startTime))}</div></td>
                       <td><b>{s.course?.code}</b> {s.course?.title}<div className="muted small">Section {s.course?.section}</div></td>
                       <td>{s.course?.creditHours}</td>
-                      <td>{s.teacher?.name}</td>
+                      <td>{s.teacher?.name || <span style={{ color: '#b91c1c', fontWeight: 600 }}>⚠️ No teacher assigned</span>}</td>
                       <td>{s.room}</td>
                       <td className="actions">
                         <button className="btn btn-small" onClick={() => setEditing({ _id: s._id, room: s.room, day: s.day, startTime: s.startTime, endTime: s.endTime })}>Edit</button>
@@ -412,7 +412,7 @@ export default function Timetable() {
                 <td>{s.startTime} - {s.endTime}</td>
                 <td>{s.course?.code} - {s.course?.title}</td>
                 <td>{s.course?.creditHours}</td>
-                <td>{s.teacher?.name}</td>
+                <td>{s.teacher?.name || 'No teacher assigned'}</td>
                 <td>{s.room}</td>
               </tr>
             ))}

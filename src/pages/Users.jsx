@@ -65,16 +65,24 @@ export default function Users() {
   };
 
   const remove = async (u) => {
+    // First read what the teacher is connected to, so the confirmation window can list it (and the server accepts the delete).
+    let info = { hasRecords: false, items: [] };
+    try { info = (await api.get(`/users/${u._id}/delete-preview`)).data.data; } catch (err) {
+      setMsg({ type: 'error', text: errorMessage(err) });
+      return;
+    }
     const yes = await confirm({
       tone: 'danger',
       title: `Delete teacher "${u.name}"?`,
-      message: 'The account will be deleted permanently.\n\nThis is only allowed if the teacher has no courses or teaching records. Otherwise use Deactivate.',
+      message: 'The account will be deleted permanently.\n\nTheir subjects stay on the timetable and show "No teacher assigned" until you choose a new teacher, and you get a notification listing them. Use Deactivate instead if you only want to stop them signing in.',
+      details: info.items.map((i) => `${i.count} ${i.label}`),
       confirmText: 'Delete teacher',
     });
     if (!yes) return;
     try {
-      await api.delete(`/users/${u._id}`);
-      setMsg({ type: 'success', text: 'Teacher deleted' });
+      const { data } = await api.delete(`/users/${u._id}`, { params: info.hasRecords ? { force: 'true' } : {} });
+      setMsg({ type: 'success', text: data.message || 'Teacher deleted' });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       load();
     } catch (err) {
       setMsg({ type: 'error', text: errorMessage(err) });

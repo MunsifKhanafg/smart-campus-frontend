@@ -1,0 +1,174 @@
+/* ==========================================================================================
+   mobile.css - phone and tablet layout for the WHOLE app. Loaded LAST (see main.jsx), so it wins over every other file.
+
+   Rule of this file: nothing ever scrolls sideways. On a small screen
+     - tables become a list of cards (one card per row, the column name above each value),
+     - the weekly timetable and the timetable grid become one block per day,
+     - card grids become one column (or two for small number boxes),
+     - the top bar keeps the Log out button visible, and the side menu has Account and Log out at its bottom.
+   The column names for the table cards come from components/useResponsiveTables.js (data-label).
+   ========================================================================================== */
+
+/* ---------- safety net (all sizes): the page itself can never be wider than the screen ---------- */
+html { overflow-x: hidden; }
+body { max-width: 100%; overflow-x: clip; }
+img, svg, video, canvas, iframe { max-width: 100%; }
+.main, .content, .card, .adm-card { min-width: 0; max-width: 100%; }
+.card, .adm-card, td, th { overflow-wrap: anywhere; }
+pre, code { white-space: pre-wrap; word-break: break-word; }
+
+/* the account / sign-out block at the bottom of the side menu is only for phones */
+.side-foot { display: none; }
+
+/* ==========================================================================================
+   Tablet and phone: the side menu becomes a drawer, the top bar gets compact
+   ========================================================================================== */
+@media (max-width: 800px) {
+  .sidebar {
+    display: flex; flex-direction: column;
+    width: min(300px, 86vw); height: 100vh; height: 100dvh; overflow: hidden;
+    padding: 1rem .8rem 0; box-shadow: 8px 0 30px rgba(0, 0, 0, .35);
+  }
+  /* only the list of pages scrolls; the account block below it is always on screen */
+  .sidebar nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin-top: 1rem; padding-bottom: .6rem; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .side-brand { flex: none; }
+  .side-foot {
+    display: block; flex: none; margin: 0 -.8rem; padding: .8rem .8rem calc(.8rem + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(255, 255, 255, .16); background: rgba(0, 0, 0, .22);
+  }
+  .side-user { display: flex; flex-direction: column; margin-bottom: .55rem; color: #fff; line-height: 1.3; }
+  .side-user small { color: var(--sidebar-text); }
+  .side-btn {
+    display: flex; align-items: center; justify-content: center; gap: .5rem; width: 100%; margin-top: .45rem; padding: .7rem;
+    border-radius: 12px; border: 1px solid rgba(255, 255, 255, .24); background: rgba(255, 255, 255, .09); color: #fff;
+    font: inherit; font-weight: 600; text-decoration: none; cursor: pointer;
+  }
+  .side-btn.out { background: #e11d48; border-color: transparent; }
+  .side-btn:hover { filter: brightness(1.1); }
+  .drawer-backdrop { position: fixed; inset: 0; z-index: 19; background: rgba(2, 6, 23, .55); }
+  body.drawer-open { overflow: hidden; }
+
+  .topbar { padding: .5rem .7rem; gap: .4rem; }
+  .menu-btn { display: grid; place-items: center; flex: none; width: 40px; height: 40px; font-size: 1.3rem; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); }
+  .logo-toggle { width: 32px; height: 32px; }
+  .bell { flex: none; padding: 0 .3rem; }
+  .top-account { display: none; } /* Account is in the side menu */
+  /* the sign-out button is always visible on the top bar, in a clear colour */
+  .top-logout { flex: none; display: inline-flex; align-items: center; gap: .35rem; padding: .45rem .7rem; white-space: nowrap; color: var(--bad-fg); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  .top-logout .lo-ico { font-size: 1.05rem; line-height: 1; }
+
+  .content { padding: .8rem .75rem 1.5rem; }
+  h1 { font-size: 1.35rem; }
+  .card { padding: .95rem; border-radius: 14px; }
+  .hero { padding: 1.1rem; border-radius: 16px; }
+  .row-between { gap: .6rem; }
+  input, select, textarea { font-size: 16px; } /* stops the phone from zooming in when a field is tapped */
+  .filters, .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .inline-form > div { flex: 1 1 100%; min-width: 0; }
+  .tabs button { flex: 1 1 auto; }
+}
+
+@media (max-width: 420px) {
+  .top-logout .lo-txt { display: none; } /* icon only on very small phones; the button stays in view */
+  .top-logout { padding: .45rem .6rem; }
+}
+
+/* ==========================================================================================
+   Tables -> cards (phones and small tablets)
+   ========================================================================================== */
+@media (max-width: 760px) {
+  .table-wrap, .adm-scroll { overflow: visible; }
+
+  table:not(.tg):not(.ps-table) { width: 100%; min-width: 0 !important; border: 0; }
+  table:not(.tg):not(.ps-table) thead { display: none; }
+  table:not(.tg):not(.ps-table) tbody,
+  table:not(.tg):not(.ps-table) tr,
+  table:not(.tg):not(.ps-table) td { display: block; width: 100%; }
+  table:not(.tg):not(.ps-table) tr { margin: 0 0 .75rem; padding: .3rem .85rem; border: 1px solid var(--border); border-radius: 14px; background: var(--surface) !important; box-shadow: var(--shadow); }
+  table:not(.tg):not(.ps-table) td { padding: .45rem 0; border: 0; border-bottom: 1px dashed var(--border); text-align: left !important; }
+  table:not(.tg):not(.ps-table) td:last-child { border-bottom: 0; }
+  table:not(.tg):not(.ps-table) td:empty { display: none; }
+  table:not(.tg):not(.ps-table) td[data-label]:not([data-label=""])::before {
+    content: attr(data-label); display: block; margin-bottom: .1rem; font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+  }
+  table:not(.tg):not(.ps-table) td.actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+  table:not(.tg):not(.ps-table) td .btn-small { margin: 0; }
+  table:not(.tg):not(.ps-table) td input:not([type='checkbox']):not([type='radio']),
+  table:not(.tg):not(.ps-table) td select { width: 100% !important; min-width: 0 !important; }
+  /* the plain "No records" row */
+  table:not(.tg):not(.ps-table) td[colspan] { text-align: center !important; }
+  table:not(.tg):not(.ps-table) tr.off { opacity: .55; }
+  .slot-chip { white-space: normal; }
+}
+
+/* ==========================================================================================
+   Timetables: one block per day instead of a wide grid
+   ========================================================================================== */
+@media (max-width: 760px) {
+  /* weekly timetable (dashboard / my timetable) */
+  .wt-scroll { overflow: visible; }
+  .wt { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+
+  /* classic grid: each day row becomes a card, each period a labelled block */
+  .tg-wrap { overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .tg { min-width: 0 !important; display: block; table-layout: auto; }
+  .tg thead { display: none; }
+  .tg tbody { display: block; }
+  .tg tr { display: block; margin-bottom: .8rem; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); }
+  .tg th.tg-day { display: block; width: auto; border: 0; padding: .6rem .9rem; }
+  .tg td { display: block; width: auto; border: 0; border-top: 1px solid var(--border); padding: .5rem .8rem; }
+  .tg td.tg-empty { display: none; }
+  .tg td[data-label]:not([data-label=""])::before { content: attr(data-label); display: block; margin-bottom: .25rem; font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .tt-all div { flex-direction: column; gap: .15rem; }
+}
+
+/* ==========================================================================================
+   Card grids: never wider than the screen
+   ========================================================================================== */
+@media (max-width: 640px) {
+  /* big cards: one per row (their minimum width is wider than a small phone) */
+  .dept-grid, .cols-2, .chart-row, .td-today, .td-subjects, .cx-subjects, .cx-sems, .person-grid, .big-boxes, .cx-pick-grid,
+  .fee-scope, .acc-perms, .tt-grid, .tt-courses, .hm-grid, .hm-steps, .hm-depts, .acc-themes { grid-template-columns: minmax(0, 1fr); }
+
+  /* small number boxes: two per row */
+  .tiles, .grid, .pf-tiles, .acc-stats, .cx-kpis, .fee-grid, .pick-grid, .pf-sems { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+  .tile { padding: .7rem; gap: .6rem; }
+  .tile .ico { width: 36px; height: 36px; font-size: 1.1rem; }
+  .tile b { font-size: 1.25rem; }
+  .stat span { font-size: 1.6rem; }
+  .big-box { min-height: 120px; }
+
+  /* charts */
+  .hbar { grid-template-columns: 84px minmax(0, 1fr) 64px; gap: .4rem; font-size: .78rem; }
+  .vbars { overflow-x: visible; gap: .3rem; }
+  .vbar { min-width: 0; font-size: .6rem; }
+  .vbar .stack { max-width: 100%; }
+
+  /* misc */
+  .acc-nav { flex-wrap: wrap; overflow: visible; }
+  .acc-hero { padding: 1.1rem; gap: .9rem; }
+  .acc-avatar { width: 64px; height: 64px; font-size: 1.4rem; }
+  .today-item { flex-wrap: wrap; gap: .4rem .8rem; }
+  .today-item .time { min-width: 0; }
+  .bubble { max-width: 96%; }
+  .cx-modal, .pf-modal { border-radius: 14px; }
+  .cx-detail { padding: .8rem; }
+  .hero .grow { min-width: 0; }
+  .pay-box { margin: 1.2rem auto; }
+
+  /* public admission pages */
+  .adm-wrap { padding: 0 .75rem; }
+  .adm-number { font-size: 1.4rem; letter-spacing: .02em; }
+  .adm-bar nav { gap: .6rem; }
+  .ad-dates { gap: 1rem; }
+
+  /* landing page: the floating preview cards would overlap the text on a phone */
+  .hm-float { display: none; }
+  .hm-card-main { transform: none; margin: 0 auto; }
+  .hm-visual { min-height: 0; }
+  .hm-cta .hm-btn { flex: 1 1 100%; }
+
+  /* sign-in page */
+  .ln-main, .lg-main { padding: .75rem; }
+  .ln-card, .lg-card { padding: 1.3rem 1.1rem; border-radius: 18px; }
+}

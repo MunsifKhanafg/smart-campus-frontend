@@ -8,11 +8,13 @@ import { ConfirmProvider } from './components/ConfirmModal.jsx';
 import { initTheme } from './theme.js';
 import { initLogoTheme } from './logoTheme.js';
 import LogoEffects from './components/LogoEffects.jsx';
+import { initResponsiveTables } from './components/useResponsiveTables.js';
 import './index.css';
 import './extra.css';
 import './colors.css';
 import './explorer.css';
 import './modal.css';
+import './modal2.css';
 import './polish.css';
 import './schedule.css';
 import './home.css';
@@ -22,9 +24,11 @@ import './timetable.css';
 import './theme.css';
 import './logo.css';
 import './modern.css';
+import './mobile.css'; // keep this LAST: the phone layout must win over every other stylesheet
 
 initTheme();
 initLogoTheme();
+initResponsiveTables(); // table -> card labels for phones, on every page
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

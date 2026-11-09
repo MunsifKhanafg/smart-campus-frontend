@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/authSlice.js';
 import api from '../api/axios.js';
 import Brand from './Brand.jsx';
 import LogoToggles from './LogoToggles.jsx';
+import useResponsiveTables from './useResponsiveTables.js';
 
 const ROLE_LABEL = {
   university_head: 'University Head',
@@ -66,6 +67,17 @@ export default function Layout() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const location = useLocation();
+  useResponsiveTables(); // tables become cards on phones, so nothing scrolls sideways
+
+  // The phone menu closes after every page change, with Esc, and the page behind it does not scroll while it is open.
+  useEffect(() => { setOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    document.body.classList.toggle('drawer-open', open);
+    const onKey = (e) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('keydown', onKey);
+    return () => { document.body.classList.remove('drawer-open'); document.removeEventListener('keydown', onKey); };
+  }, [open]);
 
   // Unread notification count for the bell. Checked on load and then once a minute.
   useEffect(() => {
@@ -86,8 +98,9 @@ export default function Layout() {
 
   return (
     <div className="shell">
+      {open && <div className="drawer-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />}
       <aside className={`sidebar ${open ? 'open' : ''}`}>
-        <Brand light showCampus />
+        <div className="side-brand"><Brand light showCampus stacked size={50} /></div>
         <nav onClick={() => setOpen(false)}>
           {(MENU[user.role] || []).map((group, i) => (
             <div key={group.title || i} className="nav-group">
@@ -105,6 +118,16 @@ export default function Layout() {
             </div>
           )}
         </nav>
+
+        {/* On a phone the top bar is small, so the account and the sign-out button are always here at the bottom of the menu too. */}
+        <div className="side-foot">
+          <div className="side-user">
+            <b>{user.name}</b>
+            <small>{ROLE_LABEL[user.role]}{user.department ? ` · ${user.department.code}` : ''}</small>
+          </div>
+          <NavLink to="/account" className="side-btn" onClick={() => setOpen(false)}>👤 Account</NavLink>
+          <button type="button" className="side-btn out" onClick={doLogout}>⎋ Log out</button>
+        </div>
       </aside>
 
       <div className="main">
@@ -119,8 +142,8 @@ export default function Layout() {
             <strong>{user.name}</strong>
             <span>{ROLE_LABEL[user.role]}{user.department ? ` · ${user.department.code}` : ''}</span>
           </div>
-          <NavLink to="/account" className="btn btn-ghost">Account</NavLink>
-          <button className="btn btn-ghost" onClick={doLogout}>Logout</button>
+          <NavLink to="/account" className="btn btn-ghost top-account">Account</NavLink>
+          <button className="btn btn-ghost top-logout" onClick={doLogout} aria-label="Log out"><span className="lo-ico">⎋</span><span className="lo-txt">Logout</span></button>
         </header>
         <main className="content"><Outlet /></main>
       </div>
