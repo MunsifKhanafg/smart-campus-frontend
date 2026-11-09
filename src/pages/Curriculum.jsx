@@ -11,26 +11,62 @@ export default function Curriculum() {
   const role = useSelector((s) => s.auth.user.role);
   const isHead = role === 'university_head';
   const [tab, setTab] = useState('programs');
+  const [pending, setPending] = useState(0); // requests waiting for the HOD
+  const [version, setVersion] = useState(0); // bumped after a decision so the other tabs reload
   const [msg, ok, fail] = useFlash();
+
+  const countPending = useCallback(() => {
+    api.get('/curriculum/requests', { params: { status: 'pending' } }).then((r) => setPending(r.data.data.length)).catch(() => {});
+  }, []);
+  useEffect(() => { countPending(); }, [countPending, tab]);
+  const changed = () => { countPending(); setVersion((v) => v + 1); };
 
   return (
     <>
       <h1>BS Programmes &amp; Curriculum</h1>
       <Alert msg={msg} />
       <Tabs
-        tabs={[['programs', 'Programme structure'], ...(isHead ? [['import', 'Upload & review']] : [])]}
+        tabs={[
+          ['programs', 'Programme structure'],
+          ['approvals', pending ? `Approvals (${pending} waiting)` : 'Approvals'],
+          ...(isHead ? [['import', 'Upload & review']] : []),
+        ]}
         active={tab}
         onChange={setTab}
       />
-      {tab === 'programs' && <Programs isHead={isHead} ok={ok} fail={fail} />}
-      {tab === 'import' && isHead && <ImportPanel ok={ok} fail={fail} done={() => setTab('programs')} />}
+      {tab === 'programs' && <Programs key={version} isHead={isHead} ok={ok} fail={fail} />}
+      {tab === 'approvals' && <ApprovalsPanel isHead={isHead} ok={ok} fail={fail} onChange={changed} />}
+      {tab === 'import' && isHead && <ImportPanel ok={ok} fail={fail} done={() => { changed(); setTab('approvals'); }} />}
     </>
   );
+}
+
+// A small dialog asking for a message. ask({ title, hint, required, confirmText }) resolves to the text, or null when cancelled.
+function useMessage() {
+  const [state, setState] = useState(null);
+  const ask = (opts) => new Promise((resolve) => setState({ ...opts, resolve, text: '' }));
+  const close = (value) => { state.resolve(value); setState(null); };
+  const dialog = state && (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.55)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: '1rem' }} onClick={() => close(null)}>
+      <div className="card" style={{ maxWidth: 520, width: '100%', margin: 0 }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ marginTop: 0 }}>{state.title}</h3>
+        {state.hint && <p className="muted small">{state.hint}</p>}
+        <textarea autoFocus rows={4} maxLength={1000} style={{ width: '100%' }} placeholder={state.placeholder || 'Write your message...'} value={state.text} onChange={(e) => setState({ ...state, text: e.target.value })} />
+        <div className="actions" style={{ marginTop: '.75rem' }}>
+          <button className={`btn ${state.tone === 'danger' ? 'btn-danger' : 'btn-primary'}`} disabled={!!state.required && state.text.trim().length < 3} onClick={() => close(state.text.trim())}>{state.confirmText || 'Send'}</button>
+          <button className="btn btn-ghost" onClick={() => close(null)}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+  return [ask, dialog];
 }
 
 // ---------- Saved programmes ----------
 function Programs({ isHead, ok, fail }) {
   const confirm = useConfirm();
+  const [ask, dialog] = useMessage();
+  const [pendingDel, setPendingDel] = useState([]); // programme ids whose deletion waits for the HOD
   const [programs, setPrograms] = useState([]);
   const [depts, setDepts] = useState([]);
   const [department, setDepartment] = useState('');
@@ -40,6 +76,7 @@ function Programs({ isHead, ok, fail }) {
     api.get('/curriculum/programs', { params: department ? { department } : {} }).then((r) => setPrograms(r.data.data)).catch(fail);
   }, [department, fail]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { api.get('/curriculum/requests/pending-deletes').then((r) => setPendingDel(r.data.data)).catch(() => {}); }, [programs]);
   useEffect(() => { if (isHead) api.get('/departments').then((r) => setDepts(r.data.data)).catch(() => {}); }, [isHead]);
 
   const archive = async (p) => {
@@ -60,13 +97,20 @@ function Programs({ isHead, ok, fail }) {
           ? `${v.classes} class(es) were created from this programme. Students are never deleted, and classes that already have real records (attendance, marks, assignments...) are kept and only unlinked from the programme.`
           : 'No classes were created from this programme. Only its saved subjects are removed.',
         details,
-        requireText: v.removable > 0 ? 'DELETE' : undefined,
-        confirmText: 'Delete programme',
+        confirmText: 'Continue',
       });
       if (!yes) return;
-      const res = await api.delete(`/curriculum/programs/${p._id}`);
-      const r = res.data.data;
-      ok(`Programme deleted. ${r.removed} class(es) removed${r.unlinked ? `, ${r.unlinked} kept` : ''}.`);
+      const message = await ask({
+        title: `Message to the HOD: delete ${p.name}`,
+        hint: 'The curriculum is NOT deleted now. The HOD of the department gets this message and must approve before anything is deleted.',
+        placeholder: 'Why should this curriculum be deleted?',
+        required: true,
+        tone: 'danger',
+        confirmText: 'Send to HOD',
+      });
+      if (!message) return;
+      await api.delete(`/curriculum/programs/${p._id}`, { data: { message } });
+      ok(`Request sent to the HOD of ${p.department?.name || 'the department'}. ${p.name} is deleted only after the HOD approves.`);
       load();
     } catch (err) { fail(err); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   };
@@ -122,6 +166,7 @@ function Programs({ isHead, ok, fail }) {
 
   return (
     <>
+      {dialog}
       {isHead && (
         <div className="card filters">
           <div>
@@ -145,7 +190,9 @@ function Programs({ isHead, ok, fail }) {
               <button className="btn btn-small" onClick={() => setOpenId(openId === p._id ? null : p._id)}>{openId === p._id ? 'Hide' : 'Show subjects'}</button>
               {isHead && <button className="btn btn-small" onClick={() => resync(p)}>Re-read from file</button>}
               {isHead && <button className="btn btn-small" onClick={() => archive(p)}>{p.status === 'active' ? 'Archive' : 'Activate'}</button>}
-              {isHead && <button className="btn btn-small btn-danger" onClick={() => remove(p)}>Delete</button>}
+              {isHead && (pendingDel.includes(String(p._id))
+                ? <span className="badge pending" title="The HOD has not decided yet">Deletion waiting for HOD</span>
+                : <button className="btn btn-small btn-danger" onClick={() => remove(p)}>Delete</button>)}
             </div>
           </div>
           {openId === p._id && (
@@ -185,9 +232,151 @@ function Programs({ isHead, ok, fail }) {
   );
 }
 
+// ---------- Approvals: the HOD decides what the principal asked for ----------
+const when = (d) => (d ? new Date(d).toLocaleString() : '');
+
+function ApprovalsPanel({ isHead, ok, fail, onChange }) {
+  const confirm = useConfirm();
+  const [ask, dialog] = useMessage();
+  const [rows, setRows] = useState(null);
+  const [status, setStatus] = useState('');
+  const [open, setOpen] = useState(null); // request whose subjects are shown
+  const [detail, setDetail] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    api.get('/curriculum/requests', { params: status ? { status } : {} }).then((r) => setRows(r.data.data)).catch(fail);
+  }, [status, fail]);
+  useEffect(() => { load(); }, [load]);
+
+  const toggle = async (r) => {
+    if (open === r._id) { setOpen(null); setDetail(null); return; }
+    setOpen(r._id);
+    setDetail(null);
+    try { setDetail((await api.get(`/curriculum/requests/${r._id}`)).data.data); } catch (err) { fail(err); }
+  };
+
+  const decide = async (r, decision) => {
+    const approve = decision === 'approve';
+    const message = await ask({
+      title: `${approve ? 'Approve' : 'Reject'}: ${r.type === 'add' ? 'adding' : 'deleting'} ${r.programName}`,
+      hint: approve
+        ? (r.type === 'add' ? 'The curriculum is saved right away and the principal is told. You may add a message.' : 'The curriculum is deleted right away and the principal is told. You may add a message.')
+        : 'Nothing is changed. The principal receives your message.',
+      placeholder: approve ? 'Optional message to the principal' : 'Why are you rejecting it?',
+      required: !approve,
+      tone: approve && r.type === 'delete' ? 'danger' : 'primary',
+      confirmText: approve ? 'Approve' : 'Reject',
+    });
+    if (message === null) return; // cancelled
+    setBusy(true);
+    try {
+      const { data } = await api.post(`/curriculum/requests/${r._id}/decide`, { decision, message });
+      ok(data.message);
+      setOpen(null);
+      load();
+      onChange();
+    } catch (err) { fail(err); window.scrollTo({ top: 0, behavior: 'smooth' }); } finally { setBusy(false); }
+  };
+
+  const cancel = async (r) => {
+    const yes = await confirm({ title: 'Cancel this request?', message: `The HOD will no longer be asked to approve ${r.type === 'add' ? 'adding' : 'deleting'} ${r.programName}.`, confirmText: 'Cancel request' });
+    if (!yes) return;
+    try { await api.post(`/curriculum/requests/${r._id}/cancel`); ok('Request cancelled'); load(); onChange(); } catch (err) { fail(err); }
+  };
+
+  const describe = (r) => {
+    const s = r.summary || {};
+    if (r.type === 'add') return `${s.subjects} subjects in ${s.semesters} semester(s). ${s.replacesExisting ? 'This REPLACES the programme that exists now; classes made from the old version are updated (classes with records are kept).' : 'This is a new programme.'}`;
+    if (r.deleteMode === 'keep') return `${s.subjects} subjects. All ${s.classes} class(es) made from it stay and are only unlinked from the programme.`;
+    return `${s.subjects} subjects. ${s.classes} class(es) were made from it: ${s.removable} will be deleted with the enrolment of ${s.students} student(s)${s.kept?.length ? `; ${s.kept.length} stay because they have records (${s.kept.map((k) => k.code).join(', ')})` : ''}. Students are never deleted.`;
+  };
+
+  return (
+    <>
+      {dialog}
+      <div className="card filters">
+        <div>
+          <label>Show</label>
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">All requests</option>
+            <option value="pending">Waiting for the HOD</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <p className="muted small" style={{ margin: 0 }}>
+          {isHead ? 'Adding or deleting a curriculum waits here until the HOD of the department approves it.' : 'The principal asks you to add or delete a curriculum of your department. Nothing changes until you approve.'}
+        </p>
+      </div>
+
+      {!rows && <p className="muted">Loading...</p>}
+      {rows && !rows.length && <div className="card muted">No requests{status ? ' with this status' : ''}.</div>}
+      {rows?.map((r) => (
+        <div className="card" key={r._id}>
+          <div className="row-between">
+            <div>
+              <h3 style={{ margin: 0 }}>
+                <span className={`badge ${r.type === 'delete' ? 'rejected' : 'upcoming'}`} style={{ marginRight: 8 }}>{r.type === 'add' ? 'Add / replace' : 'Delete'}</span>
+                {r.programName} <Badge value={r.status} text={r.status === 'pending' ? 'waiting for HOD' : r.status} />
+              </h3>
+              <div className="muted small">{r.department?.name} · requested by {r.requestedBy?.name} · {when(r.createdAt)}</div>
+            </div>
+            <div className="actions">
+              {r.type === 'add' && <button className="btn btn-small" onClick={() => toggle(r)}>{open === r._id ? 'Hide subjects' : 'See subjects'}</button>}
+              {!isHead && r.status === 'pending' && (
+                <>
+                  <button className="btn btn-small btn-primary" disabled={busy} onClick={() => decide(r, 'approve')}>Approve</button>
+                  <button className="btn btn-small btn-danger" disabled={busy} onClick={() => decide(r, 'reject')}>Reject</button>
+                </>
+              )}
+              {isHead && r.status === 'pending' && <button className="btn btn-small" onClick={() => cancel(r)}>Cancel request</button>}
+            </div>
+          </div>
+
+          <div className="sub-card mt">
+            <b>Message from {r.requestedBy?.name}:</b>
+            <div style={{ whiteSpace: 'pre-wrap' }}>{r.requestMessage}</div>
+            <div className="muted small" style={{ marginTop: 6 }}>{describe(r)}</div>
+          </div>
+
+          {r.status !== 'pending' && r.status !== 'cancelled' && (
+            <div className={`alert ${r.status === 'approved' ? 'alert-success' : 'alert-error'}`}>
+              <b>{r.status === 'approved' ? 'Approved' : 'Rejected'} by {r.decidedBy?.name}</b> · {when(r.decidedAt)}
+              {r.decisionMessage ? <div style={{ whiteSpace: 'pre-wrap' }}>{r.decisionMessage}</div> : <div className="small">No message.</div>}
+              {r.status === 'approved' && r.type === 'delete' && r.result && !r.result.alreadyGone && <div className="small">{r.result.removed} class(es) removed{r.result.unlinked ? `, ${r.result.unlinked} kept` : ''}.</div>}
+            </div>
+          )}
+
+          {open === r._id && (
+            <div className="cols-2 mt">
+              {!detail && <p className="muted">Loading subjects...</p>}
+              {detail?.snapshot?.semesters?.map((s) => (
+                <div className="sub-card" key={s.number}>
+                  <h4>Semester {s.number}</h4>
+                  <table><tbody>
+                    {s.subjects.map((x) => (
+                      <Fragment key={x.code}>
+                        <tr><td><b>{x.code}</b></td><td>{x.title}{x.elective && <span className="badge pending" style={{ marginLeft: 6 }}>elective</span>}</td><td className="right">{x.creditHours} cr</td></tr>
+                        {x.outline && <tr><td /><td colSpan={2} className="muted small" style={{ whiteSpace: 'pre-wrap' }}>{x.outline}</td></tr>}
+                      </Fragment>
+                    ))}
+                  </tbody></table>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </>
+  );
+}
+
 // ---------- Upload, review, approve ----------
 function ImportPanel({ ok, fail, done }) {
   const confirm = useConfirm();
+  const [ask, dialog] = useMessage();
   const [imports, setImports] = useState([]);
   const [depts, setDepts] = useState([]);
   const [file, setFile] = useState(null);
@@ -253,7 +442,38 @@ function ImportPanel({ ok, fail, done }) {
     } catch (err) { fail(err); return false; }
   };
 
+  // The principal does not save the curriculum directly. It is sent, with a message, to the HOD of each department and is
+  // saved only when that HOD approves (see the Approvals tab).
   const approve = async () => {
+    const total = draft.programs.reduce((n, p) => n + p.semesters.reduce((m, s) => m + s.subjects.length, 0), 0);
+    const names = [...new Set(draft.programs.map((p) => depts.find((d) => d._id === p.department)?.name).filter(Boolean))];
+    const yes = await confirm({
+      title: 'Send this curriculum to the HOD for approval?',
+      message: `${draft.programs.length} programme(s) and ${total} subjects will be sent to the HOD of ${names.join(', ') || 'the department'}. Nothing is saved to the database until the HOD approves. The HOD can also reject it and tell you why.`,
+      confirmText: 'Continue',
+    });
+    if (!yes) return;
+    const message = await ask({
+      title: 'Message to the HOD',
+      hint: 'The HOD reads this message before deciding.',
+      placeholder: 'e.g. This is the approved scheme of studies for the new intake. Please check the subjects of each semester.',
+      required: true,
+      confirmText: 'Send to HOD',
+    });
+    if (!message) return;
+    if (dirty && !(await saveDraft())) return;
+    try {
+      await api.post(`/curriculum/imports/${draft._id}/approve`, { message });
+      ok('Sent to the HOD for approval. The curriculum is saved only after the HOD approves. You will get a message with the decision.');
+      setDraft(null);
+      loadList();
+      done();
+    } catch (err) { fail(err); }
+  };
+
+  // (old direct save, no longer used)
+  // eslint-disable-next-line no-unused-vars
+  const approveOld = async () => {
     const total = draft.programs.reduce((n, p) => n + p.semesters.reduce((m, s) => m + s.subjects.length, 0), 0);
     const yes = await confirm({
       title: 'Approve and save this curriculum?',
@@ -307,6 +527,7 @@ function ImportPanel({ ok, fail, done }) {
 
   return (
     <>
+      {dialog}
       <form className="card" onSubmit={upload}>
         <h3>Upload a curriculum</h3>
         <p className="muted small">A complete BS course outline as PDF or Word (.docx). Scanned (image only) PDFs cannot be read. You will review everything before it is saved.</p>
@@ -325,7 +546,7 @@ function ImportPanel({ ok, fail, done }) {
               {imports.map((i) => (
                 <tr key={i._id}>
                   <td>{i.fileName}</td><td>{fmtDateTime(i.createdAt)}</td><td>{i.programs}</td><td>{i.subjects}</td>
-                  <td><Badge value={i.status === 'review' ? 'pending' : i.status} text={i.status === 'review' ? 'waiting for review' : i.status} /></td>
+                  <td><Badge value={i.status === 'review' ? 'pending' : i.status} text={i.status === 'review' ? 'waiting for review' : i.status === 'approved' ? 'sent to HOD' : i.status} /></td>
                   <td><button className="btn btn-small" onClick={() => openImport(i._id)}>{i.status === 'review' ? 'Review' : 'View'}</button></td>
                 </tr>
               ))}
@@ -424,10 +645,10 @@ function ImportPanel({ ok, fail, done }) {
               <div className="actions">
                 <button className="btn" onClick={() => edit((ps) => { ps.push({ name: 'BS New Programme', department: null, semesters: [{ number: 1, subjects: [{ code: '', title: '', creditHours: 3 }] }] }); })}>+ Add programme</button>
                 <button className="btn" disabled={!dirty} onClick={saveDraft}>Save draft</button>
-                <button className="btn btn-primary" onClick={approve}>Approve &amp; save to database</button>
+                <button className="btn btn-primary" onClick={approve}>Send to HOD for approval</button>
                 <button className="btn btn-danger" onClick={discard}>Discard</button>
               </div>
-              <p className="muted small">{dirty ? 'You have unsaved changes. ' : ''}Approving saves the programmes. HODs can then pick these subjects when they assign teachers.</p>
+              <p className="muted small">{dirty ? 'You have unsaved changes. ' : ''}Sending asks the HOD to approve. The programmes are saved, and HODs can pick their subjects, only after the HOD approves.</p>
             </div>
           )}
         </>
