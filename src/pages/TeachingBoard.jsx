@@ -4,6 +4,7 @@ import api from '../api/axios.js';
 import { useFlash, Alert, Badge, fmtDate } from '../components/ui.jsx';
 import TeacherPicker from '../components/TeacherPicker.jsx';
 import { colorAt, colorFor, initials } from '../components/palette.js';
+import { useConfirm } from '../components/ConfirmModal.jsx';
 
 // HOD: pick a semester, then give every subject of the approved BS programme a teacher.
 // One saved assignment is a Course document, so the teacher's profile, the department page and the semester page all update at once.
@@ -12,6 +13,7 @@ export default function TeachingBoard() {
   const role = useSelector((s) => s.auth.user.role);
   const isHod = role === 'hod';
   const [msg, ok, fail, clear] = useFlash();
+  const confirm = useConfirm();
   const [semesters, setSemesters] = useState([]);
   const [semester, setSemester] = useState('');
   const [program, setProgram] = useState('');
@@ -82,21 +84,63 @@ export default function TeachingBoard() {
     } catch (err) { fail(err); } finally { setBusy(false); }
   };
 
+  // What is inside the class(es) of a subject (attendance, assignments, quizzes ...). This call changes nothing.
+  const readRecords = async (code) => {
+    const { data: res } = await api.post('/teaching/withdraw', { semester, program, code, preview: true });
+    const classes = res.data.classes;
+    return { blocked: classes.filter((c) => c.blocked), withData: classes.filter((c) => c.hasRecords && !c.blocked) };
+  };
+  const recordLines = (list) => list.map((c) => `${c.code} Sec ${c.section}: ${c.items.map((i) => `${i.count} ${i.label}`).join(', ')}`);
+
+  // Stop offering a subject. A subject with attendance, assignments, quizzes ... is only deleted after the HOD confirmed it
+  // in the window, together with everything inside it. A subject that is part of saved results is archived instead.
   const withdraw = async (row) => {
-    if (!window.confirm(`Stop offering ${row.subject.code} ${row.subject.title}?\n\nIts class leaves Courses and the timetable. If it already has attendance or marks it is archived and the records are kept.`)) return;
+    let info;
+    try { info = await readRecords(row.subject.code); } catch (err) { return fail(err); }
+    const name = `${row.subject.code} ${row.subject.title}`;
+    const yes = await confirm(info.withData.length
+      ? {
+        tone: 'danger',
+        title: `${row.subject.code} already has records. Delete everything?`,
+        message: `Stopping ${name} deletes its class AND all the data below, permanently. The class also leaves the timetable. This cannot be undone.${info.blocked.length ? '\n\nPart of it is in saved results, so that class is archived instead and its records are kept.' : ''}`,
+        details: recordLines(info.withData),
+        confirmText: 'Yes, delete everything',
+        cancelText: 'No, keep it',
+      }
+      : {
+        tone: 'danger',
+        title: `Stop offering ${name}?`,
+        message: `Its class leaves Courses and the timetable.${info.blocked.length ? ' It is part of saved results, so it is archived instead of deleted and its records are kept.' : ''}`,
+        confirmText: 'Stop offering',
+        cancelText: 'No, keep it',
+      });
+    if (!yes) return;
     setBusy(true);
     try {
-      const { data: res } = await api.post('/teaching/withdraw', { semester, program, code: row.subject.code });
-      const kept = res.data.archived.length ? ` · ${res.data.archived.length} class(es) archived because they have records` : '';
+      const { data: res } = await api.post('/teaching/withdraw', { semester, program, code: row.subject.code, force: info.withData.length > 0 });
+      const kept = res.data.archived.length ? ` · ${res.data.archived.length} class(es) archived because they are part of saved results` : '';
       ok(`${res.message}${kept}`);
       load();
     } catch (err) { fail(err); } finally { setBusy(false); }
   };
 
   const replace = async () => {
+    let info;
+    try { info = await readRecords(swap.row.subject.code); } catch (err) { return fail(err); }
+    if (info.withData.length) {
+      const yes = await confirm({
+        tone: 'danger',
+        title: `${swap.row.subject.code} already has records. Delete everything?`,
+        message: 'Replacing it deletes the old class AND all the data below, permanently. This cannot be undone.',
+        details: recordLines(info.withData),
+        confirmText: 'Yes, replace and delete everything',
+        cancelText: 'No, keep it',
+      });
+      if (!yes) return;
+    }
     setBusy(true);
     try {
-      const { data: res } = await api.post('/teaching/replace', { semester, program, from: swap.row.subject.code, to: swap.to, keepTeacher: swap.keepTeacher });
+      const { data: res } = await api.post('/teaching/replace', { semester, program, from: swap.row.subject.code, to: swap.to, keepTeacher: swap.keepTeacher, force: info.withData.length > 0 });
       ok(res.message);
       setSwap(null);
       load();

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../../api/axios.js';
+import { useConfirm } from '../../components/ConfirmModal.jsx';
 import { useFlash, Alert, Badge, FileLink, fmtDateTime, toInputDateTime } from '../../components/ui.jsx';
 
 const EMPTY = { type: 'assignment', title: '', description: '', instructions: '', releaseDate: '', deadline: '', maxMarks: 10, allowLateSubmission: false };
@@ -9,6 +10,7 @@ export default function Assignments({ courseId, role }) {
   const isTeacher = role === 'teacher';
   const isStudent = role === 'student';
   const [msg, ok, fail] = useFlash();
+  const confirm = useConfirm();
   const [list, setList] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState(null);
@@ -50,7 +52,7 @@ export default function Assignments({ courseId, role }) {
   };
 
   const remove = async (a) => {
-    if (!window.confirm(`Delete "${a.title}"?`)) return;
+    if (!(await confirm({ tone: 'danger', title: `Delete "${a.title}"?`, message: 'Its attached files and every student submission and mark for it are deleted permanently.', confirmText: 'Delete' }))) return;
     try { await api.delete(`/assignments/${a._id}`); ok('Deleted'); load(); } catch (err) { fail(err); }
   };
 

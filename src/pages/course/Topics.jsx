@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../../api/axios.js';
 import ContentsCard from '../../components/ContentsCard.jsx';
+import { useConfirm } from '../../components/ConfirmModal.jsx';
 import { useFlash, Alert, Badge, FileLink, fmtDate, toInputDate } from '../../components/ui.jsx';
 
 const EMPTY = { title: '', description: '', scheduledDate: '', availableUntil: '' };
@@ -8,6 +9,7 @@ const EMPTY = { title: '', description: '', scheduledDate: '', availableUntil: '
 // Daily teaching topics. The SERVER decides what a student may see: upcoming topics arrive with only a title and a date.
 export default function Topics({ courseId, canEdit, outline }) {
   const [msg, ok, fail] = useFlash();
+  const confirm = useConfirm();
   const [topics, setTopics] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState(null);
@@ -44,7 +46,7 @@ export default function Topics({ courseId, canEdit, outline }) {
   };
 
   const remove = async (t) => {
-    if (!window.confirm(`Delete topic "${t.title}" and its files?`)) return;
+    if (!(await confirm({ tone: 'danger', title: `Delete "${t.title}"?`, message: 'The topic and all its uploaded files are deleted permanently.', confirmText: 'Delete topic' }))) return;
     try { await api.delete(`/topics/${t._id}`); ok('Topic deleted'); load(); } catch (err) { fail(err); }
   };
 
@@ -62,7 +64,7 @@ export default function Topics({ courseId, canEdit, outline }) {
   };
 
   const removeFile = async (t, m) => {
-    if (!window.confirm(`Remove ${m.originalName}?`)) return;
+    if (!(await confirm({ tone: 'danger', title: 'Remove this file?', message: m.originalName, confirmText: 'Remove file' }))) return;
     try { await api.delete(`/topics/${t._id}/materials/${m.storedName}`); load(); } catch (err) { fail(err); }
   };
 

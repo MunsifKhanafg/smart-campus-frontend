@@ -274,9 +274,19 @@ export default function Courses() {
     try { setMatch((await api.post('/teaching/match', { semester: selected, replaceContents })).data.data); } catch (err) { fail(err); window.scrollTo({ top: 0, behavior: 'smooth' }); } finally { setBusy(false); }
   };
   const applyMatch = async () => {
+    // Subjects that will be removed but already hold attendance, assignments, quizzes ... need the HOD's explicit "yes".
+    const withData = match.remove.filter((r) => r.hasRecords && !r.archive);
+    if (withData.length && !(await confirm({
+      tone: 'danger',
+      title: `${withData.length} subject(s) to be removed already have records. Delete everything?`,
+      message: 'They are deleted permanently together with the data listed below. This cannot be undone.',
+      details: withData.map((r) => `${r.code} Sec ${r.section}: ${r.items.map((i) => `${i.count} ${i.label}`).join(', ')}`),
+      confirmText: 'Yes, delete everything',
+      cancelText: 'No, go back',
+    }))) return;
     setBusy(true);
     try {
-      const { data } = await api.post('/teaching/match', { semester: selected, apply: true, replaceContents });
+      const { data } = await api.post('/teaching/match', { semester: selected, apply: true, replaceContents, force: withData.length > 0 });
       const r = data.data.result;
       ok(`${data.message}${r.archived.length ? `. ${r.archived.length} class(es) were archived instead of deleted because they have records` : ''}.`);
       setMatch(null);
@@ -424,7 +434,11 @@ export default function Courses() {
                 <div className="mt"><b style={{ color: '#b91c1c' }}>🗑 Will be removed ({match.remove.length})</b>
                   {match.remove.map((r, i) => (
                     <div key={i} className="small">{r.code} {r.title} (Sec {r.section}){r.teacher ? ` · teacher ${r.teacher}` : ''} — {r.reason}.{' '}
-                      {r.archive ? <b>Has {r.because}, so it is archived, not deleted.</b> : 'Its timetable classes are removed too.'}</div>
+                      {r.archive
+                        ? <b>It is part of saved results, so it is archived, not deleted.</b>
+                        : r.hasRecords
+                          ? <b>Has {r.because}. You will be asked to confirm deleting it with them.</b>
+                          : 'Its timetable classes are removed too.'}</div>
                   ))}
                 </div>
               )}
