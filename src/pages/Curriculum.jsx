@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import api from '../api/axios.js';
 import { useConfirm } from '../components/ConfirmModal.jsx';
 import { useFlash, Alert, Badge, Tabs, fmtDateTime } from '../components/ui.jsx';
+import NumberedContents from '../components/NumberedContents.jsx';
 
 // BS curriculum. The principal uploads a curriculum file (PDF or Word). The system reads it (AI when a key is configured,
 // otherwise a rule-based reader) and shows a DRAFT. Nothing is saved to the programme catalogue until the principal
@@ -217,7 +218,7 @@ function Programs({ isHead, ok, fail }) {
                               </td>
                             )}
                           </tr>
-                          {x.outline && <tr><td /><td colSpan={2} className="muted small" style={{ whiteSpace: 'pre-wrap' }}>{x.outline}</td></tr>}
+                          {x.outline && <tr><td /><td colSpan={2} className="small"><NumberedContents text={x.outline} compact /></td></tr>}
                         </Fragment>
                       ))}
                     </tbody>
@@ -359,7 +360,7 @@ function ApprovalsPanel({ isHead, ok, fail, onChange }) {
                     {s.subjects.map((x) => (
                       <Fragment key={x.code}>
                         <tr><td><b>{x.code}</b></td><td>{x.title}{x.elective && <span className="badge pending" style={{ marginLeft: 6 }}>elective</span>}</td><td className="right">{x.creditHours} cr</td></tr>
-                        {x.outline && <tr><td /><td colSpan={2} className="muted small" style={{ whiteSpace: 'pre-wrap' }}>{x.outline}</td></tr>}
+                        {x.outline && <tr><td /><td colSpan={2} className="small"><NumberedContents text={x.outline} compact /></td></tr>}
                       </Fragment>
                     ))}
                   </tbody></table>

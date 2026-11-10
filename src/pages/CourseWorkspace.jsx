@@ -11,6 +11,7 @@ import MarksTab from './course/MarksTab.jsx';
 import AssistantTab from './course/AssistantTab.jsx';
 import PerformanceTab from './course/PerformanceTab.jsx';
 import ClassList from './course/ClassList.jsx';
+import NumberedContents from '../components/NumberedContents.jsx';
 
 // One workspace per course. Notification links point here (/my-courses/:id for students, /courses/:id for staff).
 export default function CourseWorkspace() {
@@ -38,7 +39,7 @@ export default function CourseWorkspace() {
   const tabs = [['topics', 'Topics'], ['assignments', 'Assignments'], ['quizzes', 'Quizzes'], ['attendance', 'Attendance']];
   if (!isStudent) tabs.push(['students', 'Class list']);
   if (!isStudent) tabs.push(['marks', 'Exam marks']);
-  if (role === 'student' || role === 'teacher') tabs.push(['assistant', 'AI Assistant']);
+  if (role === 'student' || role === 'teacher') tabs.push(['assistant', 'Course notes Q&A']);
   if (!isStudent) tabs.push(['performance', 'Student support']);
   tabs.push(['about', 'Course contents']);
 
@@ -74,7 +75,7 @@ export default function CourseWorkspace() {
               </table>
               {course.description && <p>{course.description}</p>}
               <h4>Course contents</h4>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{course.outline || <span className="muted">{isStudent ? 'No course contents have been added yet.' : 'The curriculum has no contents for this subject. Ask your HOD to add them.'}</span>}</p>
+              {course.outline ? <NumberedContents text={course.outline} /> : <p className="muted">{isStudent ? 'No course contents have been added yet.' : 'The curriculum has no contents for this subject. Ask your HOD to add them.'}</p>}
               <p className="muted small">{fmtDate(course.startDate)} to {fmtDate(course.endDate)}</p>
             </div>
           )}

@@ -1,0 +1,7 @@
+/* Course contents shown as a numbered list: 1, 2, 3 ... */
+.contents-list { counter-reset: ct; list-style: none; margin: .5rem 0; padding: 0; display: grid; gap: .4rem; }
+.contents-list li { counter-increment: ct; display: flex; align-items: flex-start; gap: .7rem; padding: .5rem .7rem; border: 1px solid var(--border, #e2e8f0); border-radius: 10px; background: var(--surface-2, #f8fafc); overflow-wrap: anywhere; line-height: 1.45; }
+.contents-list li::before { content: counter(ct); flex: none; min-width: 1.8rem; height: 1.8rem; padding: 0 .3rem; border-radius: 999px; display: grid; place-items: center; font-size: .8rem; font-weight: 700; background: var(--primary, #1d4ed8); color: var(--on-primary, #fff); box-sizing: border-box; }
+.contents-list.compact { gap: .15rem; margin: .2rem 0; }
+.contents-list.compact li { padding: .1rem 0; border: 0; background: none; gap: .5rem; font-size: .85rem; }
+.contents-list.compact li::before { min-width: 1.35rem; height: 1.35rem; font-size: .7rem; }

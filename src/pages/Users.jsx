@@ -21,7 +21,7 @@ export default function Users() {
   const [filters, setFilters] = useState({ role: '', department: '', search: '' });
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '', maxWeeklyHours: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '', maxWeeklyHours: '', subjects: '', allDepartments: false });
 
   const load = useCallback(async () => {
     try {
@@ -45,12 +45,21 @@ export default function Users() {
       if (!body.department || !isHead || body.role === 'finance_officer') delete body.department;
       if (!body.phone) delete body.phone;
       if (!body.qualification) delete body.qualification;
+      // Subjects the teacher can teach (comma separated). "Teaches in every department" is for common subjects (English, Mathematics...)
+      // and only the principal can set it: such a teacher needs no home department.
+      if (body.role === 'teacher') {
+        body.subjects = String(body.subjects || '').split(',').map((x) => x.trim()).filter(Boolean);
+        if (!(isHead && body.allDepartments)) delete body.allDepartments;
+      } else {
+        delete body.subjects;
+        delete body.allDepartments;
+      }
       // Weekly teaching hours limit for a teacher. Empty = no limit.
       if (body.role === 'teacher' && body.maxWeeklyHours !== '') body.maxWeeklyHours = Number(body.maxWeeklyHours); else delete body.maxWeeklyHours;
       await api.post('/users', body);
       setMsg({ type: 'success', text: 'User created. They must change the password at first login.' });
       setShowForm(false);
-      setForm({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '', maxWeeklyHours: '' });
+      setForm({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '', maxWeeklyHours: '', subjects: '', allDepartments: false });
       load();
     } catch (err) {
       setMsg({ type: 'error', text: errorMessage(err) });
@@ -102,8 +111,8 @@ export default function Users() {
     const extra = (u.extraDepartments || []).map((d) => d._id || d);
     setEdit({
       id: u._id, role: u.role, home: u.department?._id || '', name: u.name, email: u.email, phone: u.phone || '', qualification: u.qualification || '', password: '',
-      maxWeeklyHours: u.maxWeeklyHours ? String(u.maxWeeklyHours) : '', subjects, extraDepartments: extra,
-      original: { name: u.name, email: u.email, phone: u.phone || '', qualification: u.qualification || '', maxWeeklyHours: u.maxWeeklyHours ? String(u.maxWeeklyHours) : '', subjects, extraDepartments: extra },
+      maxWeeklyHours: u.maxWeeklyHours ? String(u.maxWeeklyHours) : '', subjects, extraDepartments: extra, allDepartments: !!u.allDepartments,
+      original: { name: u.name, email: u.email, phone: u.phone || '', qualification: u.qualification || '', maxWeeklyHours: u.maxWeeklyHours ? String(u.maxWeeklyHours) : '', subjects, extraDepartments: extra, allDepartments: !!u.allDepartments },
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -128,6 +137,7 @@ export default function Users() {
         if (edit.maxWeeklyHours !== edit.original.maxWeeklyHours) body.maxWeeklyHours = edit.maxWeeklyHours === '' ? null : Number(edit.maxWeeklyHours);
         if (edit.subjects.trim() !== edit.original.subjects.trim()) body.subjects = edit.subjects.split(',').map((x) => x.trim()).filter(Boolean);
         if ([...edit.extraDepartments].sort().join() !== [...edit.original.extraDepartments].sort().join()) body.extraDepartments = edit.extraDepartments;
+        if (isHead && edit.role === 'teacher' && edit.allDepartments !== edit.original.allDepartments) body.allDepartments = edit.allDepartments;
         if (Object.keys(body).length) {
           await api.put(`/users/${edit.id}`, body);
           done.push(...Object.keys(body));
@@ -175,6 +185,9 @@ export default function Users() {
             {form.role === 'teacher' && (
               <div><label>Weekly teaching hours limit (optional)</label><input type="number" min={1} max={60} placeholder="empty = no limit" value={form.maxWeeklyHours} onChange={(e) => setForm({ ...form, maxWeeklyHours: e.target.value })} /></div>
             )}
+            {form.role === 'teacher' && (
+              <div><label>Subjects this teacher can teach (comma separated)</label><input placeholder="English, Mathematics" value={form.subjects} onChange={(e) => setForm({ ...form, subjects: e.target.value })} /></div>
+            )}
             <div>
               <label>Role</label>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
@@ -183,14 +196,20 @@ export default function Users() {
             </div>
             {isHead && form.role !== 'finance_officer' && (
               <div>
-                <label>Department</label>
-                <select required value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>
-                  <option value="">Select...</option>
+                <label>{form.allDepartments ? 'Home department (optional)' : 'Department'}</label>
+                <select required={!form.allDepartments} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>
+                  <option value="">{form.allDepartments ? 'None (belongs to the whole college)' : 'Select...'}</option>
                   {depts.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
                 </select>
               </div>
             )}
           </div>
+          {isHead && form.role === 'teacher' && (
+            <label className="check mt">
+              <input type="checkbox" checked={form.allDepartments} onChange={(e) => setForm({ ...form, allDepartments: e.target.checked })} />
+              Teaches in every department (common subjects such as English, Mathematics, Islamiat, Pakistan Studies). No home department is needed.
+            </label>
+          )}
           <div className="actions">
             <button className="btn btn-primary">Create</button>
             <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>Cancel</button>
@@ -225,7 +244,13 @@ export default function Users() {
                 There is no fixed limit. Set the weekly hours that match the real workload, for example 8, 12 or 20 classes a week, or leave it empty for no limit.
                 When the HOD assigns a subject, the server refuses it only if it would take the teacher over this number.
               </p>
-              {depts.filter((d) => d._id !== edit.home).length > 0 && (
+              {isHead && edit.role === 'teacher' && (
+                <label className="check mt">
+                  <input type="checkbox" checked={edit.allDepartments} onChange={(e) => setEdit({ ...edit, allDepartments: e.target.checked })} />
+                  Teaches in every department (common subjects: English, Mathematics, Islamiat, Pakistan Studies...)
+                </label>
+              )}
+              {!edit.allDepartments && depts.filter((d) => d._id !== edit.home).length > 0 && (
                 <>
                   <label>Also teaches in (common subjects such as English or Islamiat)</label>
                   <div className="actions" style={{ flexWrap: 'wrap' }}>
@@ -279,10 +304,10 @@ export default function Users() {
           <tbody>
             {users.map((u) => (
               <tr key={u._id}>
-                <td>{u.name}{u.qualification && <div className="muted small">{u.qualification}</div>}{['teacher', 'hod'].includes(u.role) && <div className="muted small">{u.maxWeeklyHours ? `Limit: ${u.maxWeeklyHours} hours/week` : 'No weekly limit'}</div>}</td>
+                <td>{u.name}{u.qualification && <div className="muted small">{u.qualification}</div>}{['teacher', 'hod'].includes(u.role) && <div className="muted small">{u.maxWeeklyHours ? `Limit: ${u.maxWeeklyHours} hours/week` : 'No weekly limit'}</div>}{(u.subjects || []).length > 0 && <div className="muted small">Teaches: {u.subjects.join(', ')}</div>}</td>
                 <td>{u.email}{u.phone && <div className="muted small">{u.phone}</div>}</td>
                 <td>{LABEL[u.role]}</td>
-                <td>{u.department?.code || '—'}</td>
+                <td>{u.allDepartments ? <span className="badge upcoming">All departments</span> : (u.department?.code || '—')}{u.allDepartments && u.department && <div className="muted small">home: {u.department.code}</div>}</td>
                 <td><span className={`badge ${u.isActive ? 'active' : 'archived'}`}>{u.isActive ? 'active' : 'inactive'}</span></td>
                 <td className="actions">
                   {canEdit(u) && <button className="btn btn-small" onClick={() => openEdit(u)}>Edit / reset password</button>}

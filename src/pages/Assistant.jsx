@@ -15,6 +15,8 @@ const STARTERS = {
   lesson: ['Lesson plan: Introduction to SQL joins, 60 minutes, second-year students'],
   questions: ['10 short questions with answer key on operating system scheduling, 20 marks'],
   rubric: ['Rubric for a 10-mark presentation on a software design pattern'],
+  people: ['List all teachers with their qualification, email and subjects', 'Show all students with roll numbers and semesters', 'How many students are in each semester?', 'Who is the HOD of each department?', 'Show students of semester 3'],
+  campus: ['Who teaches my subjects, and how can I contact them?', 'Show my weekly timetable', 'List the course contents of each of my subjects', 'How many credit hours do my subjects have in total?'],
 };
 
 export default function Assistant() {
@@ -162,7 +164,7 @@ export default function Assistant() {
             <small className="muted">Answers come only from the notes your teacher uploaded for this course.</small>
           </div>
         )}
-        {!configured && mode !== 'course' && <div className="alert alert-info">The AI model is not switched on yet. The administrator must add the AI key on the server. Course materials still work.</div>}
+        {!configured && !['course', 'campus', 'people'].includes(mode) && <div className="alert alert-info">The AI model is not switched on yet. The administrator must add the AI key on the server. Course materials still work.</div>}
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="as-scroll" ref={boxRef}>

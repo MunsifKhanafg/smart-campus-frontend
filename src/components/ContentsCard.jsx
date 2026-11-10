@@ -1,14 +1,9 @@
 import { useState } from 'react';
 import api from '../api/axios.js';
+import NumberedContents from './NumberedContents.jsx';
+import { splitContents } from './contentsUtil.js';
 
-// Splits the course contents text into topic titles: one per line, or per ";" or per sentence.
-// If that gives a single long line of comma separated items, it splits on the commas.
-export const splitContents = (text) => {
-  const clean = (s) => s.replace(/^[\s\-•*\u2022\d.)]+/, '').replace(/\s+/g, ' ').trim().replace(/[.;,]$/, '');
-  let items = String(text || '').split(/\r?\n|;|(?<=\.)\s+(?=[A-Z])/).map(clean).filter((s) => s.length > 2);
-  if (items.length === 1 && items[0].includes(',')) items = items[0].split(',').map(clean).filter((s) => s.length > 2);
-  return items.slice(0, 60).map((s) => s.slice(0, 200));
-};
+export { splitContents };
 
 const addDays = (iso, days) => {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -16,7 +11,7 @@ const addDays = (iso, days) => {
   return d.toISOString().slice(0, 10);
 };
 
-// "Course contents" of the subject, taken from the BS curriculum when the HOD assigned the teacher.
+// "Course contents" of the subject, taken from the BS curriculum when the HOD assigned the teacher, shown as a numbered list.
 // The teacher can turn them into daily topics with one click (dates are spread out; each topic can be edited afterwards).
 export default function ContentsCard({ outline, courseId, canEdit, topicCount, onCreated, ok, fail }) {
   const [start, setStart] = useState(new Date().toISOString().slice(0, 10));
@@ -52,8 +47,8 @@ export default function ContentsCard({ outline, courseId, canEdit, topicCount, o
 
   return (
     <div className="card">
-      <h3>Course contents <span className="muted small">(from the BS curriculum)</span></h3>
-      <p style={{ whiteSpace: 'pre-wrap' }}>{outline}</p>
+      <h3>Course contents <span className="muted small">({items.length} items, from the BS curriculum)</span></h3>
+      <NumberedContents text={outline} />
       {canEdit && items.length > 0 && (
         <div className="inline-form">
           <div><label>First teaching date</label><input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></div>

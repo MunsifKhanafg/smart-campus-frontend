@@ -23,14 +23,18 @@ export default function TeacherPicker({
   canRemove, onRemove, onSave, saveLabel = 'Assign teacher', saveDisabled, busy, error, onClose,
 }) {
   const [search, setSearch] = useState('');
-  const fitting = useMemo(() => (fits ? teachers.filter(fits) : teachers), [teachers, fits]);
-  const [mode, setMode] = useState(() => (fits && teachers.some(fits) ? 'fit' : 'all'));
+  // Only teachers permitted to teach in this department can be chosen. eligible === false means "shown greyed out under All teachers".
+  const allowed = (t) => t.eligible !== false;
+  const fitting = useMemo(() => (fits ? teachers.filter((t) => allowed(t) && fits(t)) : teachers), [teachers, fits]);
+  const [mode, setMode] = useState(() => (fits && teachers.some((t) => allowed(t) && fits(t)) ? 'fit' : 'all'));
   const pool = fits && mode === 'fit' ? fitting : teachers;
 
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     return pool.filter((t) => !q || t.name.toLowerCase().includes(q) || (t.email || '').toLowerCase().includes(q)
-      || (t.qualification || '').toLowerCase().includes(q) || (t.subjects || []).some((s) => s.toLowerCase().includes(q)));
+      || (t.qualification || '').toLowerCase().includes(q) || (t.subjects || []).some((s) => s.toLowerCase().includes(q))
+      || `${t.department?.code || ''} ${t.department?.name || ''}`.toLowerCase().includes(q)
+      || (t.permitted?.list || []).some((d) => `${d.code} ${d.name}`.toLowerCase().includes(q)));
   }, [pool, search]);
   const chosen = teachers.find((t) => t._id === value);
 
@@ -54,7 +58,7 @@ export default function TeacherPicker({
               <button type="button" className={mode === 'all' ? 'on' : ''} onClick={() => setMode('all')}>All teachers ({teachers.length})</button>
             </div>
           )}
-          <input placeholder="Search by name, email, qualification or subject..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input placeholder="Search by name, subject (English, Maths, Arts...), department or qualification..." value={search} onChange={(e) => setSearch(e.target.value)} />
 
           {fits && mode === 'fit' && !fitting.length && (
             <p className="cx-muted" style={{ marginTop: '.8rem' }}>
@@ -70,7 +74,7 @@ export default function TeacherPicker({
               const over = !!limit && hours + (t._id === currentTeacherId ? 0 : courseHours) > limit;
               const n = (t.assignments || []).length;
               return (
-                <button key={t._id} type="button" style={colorFor(t.name)} className={`cx-pick ${value === t._id ? 'on' : ''}`} onClick={() => onChange(t._id)}>
+                <button key={t._id} type="button" style={allowed(t) ? colorFor(t.name) : { ...colorFor(t.name), opacity: 0.5, cursor: 'not-allowed' }} className={`cx-pick ${value === t._id ? 'on' : ''}`} onClick={() => allowed(t) && onChange(t._id)}>
                   <div className="cx-pick-top">
                     <span className="cx-av">{initials(t.name)}</span>
                     <div className="grow">
@@ -83,6 +87,8 @@ export default function TeacherPicker({
                     </div>
                   </div>
                   <div className="cx-muted cx-contact">{t.email}{t.phone ? ` · ${t.phone}` : ''}</div>
+                  <div className="cx-muted cx-contact">Permitted to teach in: <b>{t.permitted?.all ? 'All departments' : ((t.permitted?.list || []).map((d) => d.code).join(', ') || '—')}</b></div>
+                  {!allowed(t) && <div className="cx-over">Not permitted in this department. The principal can allow it under Users &gt; Edit.</div>}
                   {(t.subjects || []).length > 0 && (
                     <div className="cx-teaching">
                       {t.subjects.slice(0, 5).map((s) => <span key={s} style={{ background: '#eef2ff', borderColor: '#c7d2fe' }}>{s}</span>)}
@@ -92,7 +98,7 @@ export default function TeacherPicker({
                   <div className="cx-load"><i className={level === 'free' ? 'low' : level} style={{ width: `${limit ? Math.min(100, (hours / limit) * 100) : Math.min(100, hours * 5)}%` }} /></div>
                   <div className="cx-load-text">
                     <span className={`cx-pill ${level === 'free' ? 'low' : level}`}>{LOAD_TEXT[level]}</span>
-                    <span>{hours} h/week{limit ? ` of ${limit}` : ''} · {n} class{n === 1 ? '' : 'es'}</span>
+                    <span>{hours} h/week{limit ? ` of ${limit} · ${t.freeHours ?? Math.max(0, limit - hours)} h free` : ' · no limit set'} · {t.creditHours || 0} credit hrs · {n} class{n === 1 ? '' : 'es'}</span>
                   </div>
                   {over && <div className="cx-over">Would go over the weekly limit of {limit} hours</div>}
                   {n > 0 && (

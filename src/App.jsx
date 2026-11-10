@@ -56,6 +56,7 @@ import Apply from './pages/Apply.jsx';
 import TrackApplication from './pages/TrackApplication.jsx';
 import MeritList from './pages/MeritList.jsx';
 import Applications from './pages/Applications.jsx';
+import Assistant from './pages/Assistant.jsx';
 
 // The University Head browses students by department boxes; an HOD uses the full management page.
 function StudentsEntry() {
@@ -112,6 +113,11 @@ export default function App() {
           <Route path="/account" element={<Account />} />
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/timetable" element={<TimetableEntry />} />
+
+          {/* AI assistant: students, teachers, HODs and the principal */}
+          <Route element={<ProtectedRoute roles={[STU, TEA, HOD, HEAD]} />}>
+            <Route path="/assistant" element={<Assistant />} />
+          </Route>
 
           {/* University head and HOD */}
           <Route element={<ProtectedRoute roles={[HEAD, HOD]} />}>
