@@ -1,0 +1,207 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
+import api, { errorMessage } from '../api/axios.js';
+import Markdown from '../components/Markdown.jsx';
+import './assistant.css';
+
+// Example questions shown on an empty chat, per tool.
+const STARTERS = {
+  general: ['Explain the difference between a process and a thread', 'What are good ways to prepare for final exams in 2 weeks?', 'How do I write a strong introduction for a research report?'],
+  explain: ['Normalization in databases', 'Supply and demand', 'Newton\'s laws of motion'],
+  solve: ['Solve 2x² − 5x − 3 = 0 step by step', 'Find the derivative of x³·sin(x)', 'A loan of 100,000 at 12% simple interest for 3 years: find the total'],
+  quiz: ['Pakistan Studies: Lahore Resolution and the 1940s', 'Data structures: stacks and queues', 'Islamiat: pillars of Islam'],
+  plan: ['I have 4 subjects and exams start in 10 days. I can study 5 hours a day.'],
+  code: ['Why does my loop print undefined? for (var i=0;i<3;i++){ setTimeout(()=>console.log(i)) }', 'Explain recursion with a simple example in Python'],
+  lesson: ['Lesson plan: Introduction to SQL joins, 60 minutes, second-year students'],
+  questions: ['10 short questions with answer key on operating system scheduling, 20 marks'],
+  rubric: ['Rubric for a 10-mark presentation on a software design pattern'],
+};
+
+export default function Assistant() {
+  const { user } = useSelector((s) => s.auth);
+  const isStudent = user.role === 'student';
+  const [modes, setModes] = useState([]);
+  const [configured, setConfigured] = useState(true);
+  const [mode, setMode] = useState('general');
+  const [chats, setChats] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [courses, setCourses] = useState([]);
+  const [course, setCourse] = useState('');
+  const [drawer, setDrawer] = useState(false);
+  const [copied, setCopied] = useState(null);
+  const endRef = useRef(null);
+  const boxRef = useRef(null);
+
+  const loadChats = useCallback(() => api.get('/ai/conversations').then((r) => setChats(r.data.data)).catch(() => {}), []);
+
+  useEffect(() => {
+    api.get('/ai/modes').then((r) => { setModes(r.data.data.modes); setConfigured(r.data.data.configured); }).catch((e) => setError(errorMessage(e)));
+    loadChats();
+    const load = isStudent
+      ? api.get('/enrollments/my-courses').then((r) => r.data.data.map((x) => ({ id: x.course._id, label: `${x.course.code} · ${x.course.title}` })))
+      : api.get('/courses', { params: { status: 'active' } }).then((r) => r.data.data.map((c) => ({ id: c._id, label: `${c.code} · ${c.title}${c.section ? ` (${c.section})` : ''}` })));
+    load.then(setCourses).catch(() => {});
+  }, [isStudent, loadChats]);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages, busy]);
+
+  const current = modes.find((m) => m.id === mode);
+
+  const newChat = () => { setActiveId(null); setMessages([]); setError(''); setInput(''); setDrawer(false); };
+
+  const openChat = async (id) => {
+    try {
+      const { data } = await api.get(`/ai/conversations/${id}`);
+      setActiveId(id);
+      setMessages(data.data.messages);
+      setMode(data.data.mode || (data.data.course ? 'course' : 'general'));
+      if (data.data.course) setCourse(data.data.course);
+      setError('');
+      setDrawer(false);
+    } catch (e) { setError(errorMessage(e)); }
+  };
+
+  const removeChat = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm('Delete this conversation?')) return;
+    try { await api.delete(`/ai/conversations/${id}`); if (id === activeId) newChat(); loadChats(); } catch (err) { setError(errorMessage(err)); }
+  };
+
+  const renameChat = async (c, e) => {
+    e.stopPropagation();
+    const title = window.prompt('New name for this conversation', c.title || '');
+    if (!title || !title.trim()) return;
+    try { await api.patch(`/ai/conversations/${c._id}`, { title: title.trim() }); loadChats(); } catch (err) { setError(errorMessage(err)); }
+  };
+
+  const send = async (text) => {
+    const message = (text ?? input).trim();
+    if (!message || busy) return;
+    if (mode === 'course' && !course && !activeId) return setError('Choose a course first');
+    setError('');
+    setInput('');
+    setMessages((m) => [...m, { role: 'user', content: message }]);
+    setBusy(true);
+    try {
+      const { data } = await api.post('/ai/chat', { message, mode, conversationId: activeId || undefined, course: mode === 'course' ? course || undefined : undefined });
+      const r = data.data;
+      setActiveId(r.conversationId);
+      setMessages((m) => [...m, { role: 'assistant', content: r.answer, sources: r.sources, grounded: r.grounded }]);
+      loadChats();
+    } catch (e) {
+      setMessages((m) => m.slice(0, -1));
+      setInput(message);
+      setError(errorMessage(e));
+    } finally { setBusy(false); }
+  };
+
+  const onKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  };
+  const grow = (e) => {
+    setInput(e.target.value);
+    const t = e.target;
+    t.style.height = 'auto';
+    t.style.height = `${Math.min(t.scrollHeight, 180)}px`;
+  };
+
+  const copy = async (text, i) => {
+    try { await navigator.clipboard.writeText(text); setCopied(i); setTimeout(() => setCopied(null), 1500); } catch { setError('Copy is not available in this browser'); }
+  };
+
+  const iconOf = (c) => modes.find((m) => m.id === (c.mode || (c.course ? 'course' : 'general')))?.icon || '💬';
+  const starters = STARTERS[mode] || [];
+
+  return (
+    <div className="as">
+      {drawer && <div className="as-scrim" onClick={() => setDrawer(false)} />}
+      <aside className={`as-side ${drawer ? 'open' : ''}`}>
+        <button className="btn btn-primary as-new" onClick={newChat}>＋ New chat</button>
+        <div className="as-list">
+          {chats.map((c) => (
+            <div key={c._id} className={`as-item ${c._id === activeId ? 'on' : ''}`} onClick={() => openChat(c._id)}>
+              <span className="ico">{iconOf(c)}</span>
+              <span className="t">{c.title || 'Chat'}</span>
+              <button type="button" title="Rename" onClick={(e) => renameChat(c, e)}>✎</button>
+              <button type="button" title="Delete" onClick={(e) => removeChat(c._id, e)}>✕</button>
+            </div>
+          ))}
+          {!chats.length && <p className="muted small" style={{ padding: '.5rem' }}>Your conversations will appear here.</p>}
+        </div>
+      </aside>
+
+      <section className="as-main">
+        <header className="as-head">
+          <button type="button" className="btn btn-ghost as-hist" onClick={() => setDrawer(true)}>☰ History</button>
+          <div className="grow">
+            <h2>AI Assistant</h2>
+            <span className="muted small">{current ? `${current.icon} ${current.label}: ${current.hint}` : 'Ask anything about your studies'}</span>
+          </div>
+          <button type="button" className="btn btn-ghost" onClick={newChat}>New chat</button>
+        </header>
+
+        <div className="as-modes" role="tablist" aria-label="Assistant options">
+          {modes.map((m) => (
+            <button key={m.id} type="button" role="tab" aria-selected={mode === m.id} className={`as-chip ${mode === m.id ? 'on' : ''}`} onClick={() => setMode(m.id)} title={m.hint}>
+              <span>{m.icon}</span> {m.label}
+            </button>
+          ))}
+        </div>
+
+        {mode === 'course' && (
+          <div className="as-course">
+            <label>Course</label>
+            <select value={course} onChange={(e) => setCourse(e.target.value)} disabled={!!activeId}>
+              <option value="">Choose a course...</option>
+              {courses.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+            <small className="muted">Answers come only from the notes your teacher uploaded for this course.</small>
+          </div>
+        )}
+        {!configured && mode !== 'course' && <div className="alert alert-info">The AI model is not switched on yet. The administrator must add the AI key on the server. Course materials still work.</div>}
+        {error && <div className="alert alert-error">{error}</div>}
+
+        <div className="as-scroll" ref={boxRef}>
+          {!messages.length && (
+            <div className="as-empty">
+              <div className="big">{current?.icon || '💬'}</div>
+              <h3>{current?.label || 'Ask anything'}</h3>
+              <p className="muted">{current?.hint}</p>
+              <div className="as-starters">
+                {starters.map((s) => <button key={s} type="button" onClick={() => send(s)}>{s}</button>)}
+              </div>
+            </div>
+          )}
+          {messages.map((m, i) => (
+            <div key={i} className={`as-msg ${m.role}`}>
+              <div className="as-av">{m.role === 'user' ? (user.name || '?')[0] : '🤖'}</div>
+              <div className="as-bubble">
+                {m.role === 'assistant' ? <Markdown text={m.content} /> : <p className="as-user-text">{m.content}</p>}
+                {m.role === 'assistant' && m.sources?.length > 0 && (
+                  <div className="as-sources">Sources: {m.sources.map((s) => `${s.topic || 'Material'} (${s.fileName})`).join(', ')}</div>
+                )}
+                {m.role === 'assistant' && (
+                  <button type="button" className="as-copy" onClick={() => copy(m.content, i)}>{copied === i ? 'Copied ✓' : 'Copy'}</button>
+                )}
+              </div>
+            </div>
+          ))}
+          {busy && (
+            <div className="as-msg assistant"><div className="as-av">🤖</div><div className="as-bubble"><span className="as-dots"><i /><i /><i /></span></div></div>
+          )}
+          <div ref={endRef} />
+        </div>
+
+        <form className="as-input" onSubmit={(e) => { e.preventDefault(); send(); }}>
+          <textarea rows={1} value={input} onChange={grow} onKeyDown={onKey} placeholder={current?.placeholder || 'Message the assistant...'} maxLength={4000} />
+          <button className="btn btn-primary" disabled={busy || !input.trim()}>{busy ? '...' : 'Send'}</button>
+        </form>
+        <p className="as-note">AI can make mistakes, so check important facts. It never changes marks, grades, attendance, fees or admission.</p>
+      </section>
+    </div>
+  );
+}

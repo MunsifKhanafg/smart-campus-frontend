@@ -21,7 +21,7 @@ export default function Users() {
   const [filters, setFilters] = useState({ role: '', department: '', search: '' });
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '', maxWeeklyHours: '' });
 
   const load = useCallback(async () => {
     try {
@@ -45,10 +45,12 @@ export default function Users() {
       if (!body.department || !isHead || body.role === 'finance_officer') delete body.department;
       if (!body.phone) delete body.phone;
       if (!body.qualification) delete body.qualification;
+      // Weekly teaching hours limit for a teacher. Empty = no limit.
+      if (body.role === 'teacher' && body.maxWeeklyHours !== '') body.maxWeeklyHours = Number(body.maxWeeklyHours); else delete body.maxWeeklyHours;
       await api.post('/users', body);
       setMsg({ type: 'success', text: 'User created. They must change the password at first login.' });
       setShowForm(false);
-      setForm({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '' });
+      setForm({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '', maxWeeklyHours: '' });
       load();
     } catch (err) {
       setMsg({ type: 'error', text: errorMessage(err) });
@@ -96,9 +98,12 @@ export default function Users() {
   const canEdit = (u) => u.role !== 'university_head' && (isHead || u.role === 'teacher');
 
   const openEdit = (u) => {
+    const subjects = (u.subjects || []).join(', ');
+    const extra = (u.extraDepartments || []).map((d) => d._id || d);
     setEdit({
-      id: u._id, role: u.role, name: u.name, email: u.email, phone: u.phone || '', qualification: u.qualification || '', password: '',
-      original: { name: u.name, email: u.email, phone: u.phone || '', qualification: u.qualification || '' },
+      id: u._id, role: u.role, home: u.department?._id || '', name: u.name, email: u.email, phone: u.phone || '', qualification: u.qualification || '', password: '',
+      maxWeeklyHours: u.maxWeeklyHours ? String(u.maxWeeklyHours) : '', subjects, extraDepartments: extra,
+      original: { name: u.name, email: u.email, phone: u.phone || '', qualification: u.qualification || '', maxWeeklyHours: u.maxWeeklyHours ? String(u.maxWeeklyHours) : '', subjects, extraDepartments: extra },
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -119,6 +124,10 @@ export default function Users() {
         if (edit.email.trim().toLowerCase() !== edit.original.email.toLowerCase()) body.email = edit.email.trim();
         if (edit.phone.trim() !== edit.original.phone) body.phone = edit.phone.trim();
         if (edit.qualification.trim() !== edit.original.qualification) body.qualification = edit.qualification.trim();
+        // Teaching workload: the weekly hours limit (empty = no limit), the subjects the person can teach, and the other departments they teach in.
+        if (edit.maxWeeklyHours !== edit.original.maxWeeklyHours) body.maxWeeklyHours = edit.maxWeeklyHours === '' ? null : Number(edit.maxWeeklyHours);
+        if (edit.subjects.trim() !== edit.original.subjects.trim()) body.subjects = edit.subjects.split(',').map((x) => x.trim()).filter(Boolean);
+        if ([...edit.extraDepartments].sort().join() !== [...edit.original.extraDepartments].sort().join()) body.extraDepartments = edit.extraDepartments;
         if (Object.keys(body).length) {
           await api.put(`/users/${edit.id}`, body);
           done.push(...Object.keys(body));
@@ -163,6 +172,9 @@ export default function Users() {
             <div><label>Temporary password (min 8)</label><input required minLength={8} type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             <div><label>Phone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div><label>Qualification (e.g. MS Computer Science)</label><input maxLength={200} value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} /></div>
+            {form.role === 'teacher' && (
+              <div><label>Weekly teaching hours limit (optional)</label><input type="number" min={1} max={60} placeholder="empty = no limit" value={form.maxWeeklyHours} onChange={(e) => setForm({ ...form, maxWeeklyHours: e.target.value })} /></div>
+            )}
             <div>
               <label>Role</label>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
@@ -195,6 +207,40 @@ export default function Users() {
             {edit.role !== 'student' && <div><label>Phone</label><input value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>}
             {edit.role !== 'student' && <div><label>Qualification</label><input maxLength={200} value={edit.qualification} onChange={(e) => setEdit({ ...edit, qualification: e.target.value })} /></div>}
           </div>
+
+          {['teacher', 'hod'].includes(edit.role) && (
+            <>
+              <h4>Teaching workload</h4>
+              <div className="form-grid">
+                <div>
+                  <label>Weekly teaching hours (limit)</label>
+                  <input type="number" min={1} max={60} placeholder="empty = no limit" value={edit.maxWeeklyHours} onChange={(e) => setEdit({ ...edit, maxWeeklyHours: e.target.value })} />
+                </div>
+                <div>
+                  <label>Subjects this person can teach (comma separated)</label>
+                  <input placeholder="English, Mathematics" value={edit.subjects} onChange={(e) => setEdit({ ...edit, subjects: e.target.value })} />
+                </div>
+              </div>
+              <p className="muted small" style={{ marginTop: 0 }}>
+                There is no fixed limit. Set the weekly hours that match the real workload, for example 8, 12 or 20 classes a week, or leave it empty for no limit.
+                When the HOD assigns a subject, the server refuses it only if it would take the teacher over this number.
+              </p>
+              {depts.filter((d) => d._id !== edit.home).length > 0 && (
+                <>
+                  <label>Also teaches in (common subjects such as English or Islamiat)</label>
+                  <div className="actions" style={{ flexWrap: 'wrap' }}>
+                    {depts.filter((d) => d._id !== edit.home).map((d) => (
+                      <label key={d._id} className="check" style={{ marginRight: '1rem' }}>
+                        <input type="checkbox" checked={edit.extraDepartments.includes(d._id)}
+                          onChange={(e) => setEdit({ ...edit, extraDepartments: e.target.checked ? [...edit.extraDepartments, d._id] : edit.extraDepartments.filter((x) => x !== d._id) })} />
+                        {d.name}
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
 
           <h4>Forgot the password?</h4>
           <p className="muted small" style={{ marginTop: 0 }}>
@@ -233,7 +279,7 @@ export default function Users() {
           <tbody>
             {users.map((u) => (
               <tr key={u._id}>
-                <td>{u.name}{u.qualification && <div className="muted small">{u.qualification}</div>}</td>
+                <td>{u.name}{u.qualification && <div className="muted small">{u.qualification}</div>}{['teacher', 'hod'].includes(u.role) && <div className="muted small">{u.maxWeeklyHours ? `Limit: ${u.maxWeeklyHours} hours/week` : 'No weekly limit'}</div>}</td>
                 <td>{u.email}{u.phone && <div className="muted small">{u.phone}</div>}</td>
                 <td>{LABEL[u.role]}</td>
                 <td>{u.department?.code || '—'}</td>

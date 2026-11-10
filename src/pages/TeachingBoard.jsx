@@ -47,15 +47,20 @@ export default function TeachingBoard() {
   };
   const choose = (subject, cls) => {
     clear();
-    setPick({ subject, section: cls?.section || nextSection(subject), teacher: cls?.teacher?._id || '', existing: !!cls, hasTeacher: !!cls?.teacher });
+    setPick({
+      subject, section: cls?.section || nextSection(subject), teacher: cls?.teacher?._id || '', existing: !!cls, hasTeacher: !!cls?.teacher,
+      currentTeacher: cls?.teacher?._id || '',
+      weeklyClasses: cls?.weeklyClasses ? String(cls.weeklyClasses) : '', // empty = as many classes per week as the credit hours
+    });
   };
 
   const save = async (teacherId) => {
     setBusy(true);
     try {
-      const { data: res } = await api.post('/teaching/assign', {
-        semester, program, code: pick.subject.subject.code, section: pick.section, teacher: teacherId,
-      });
+      // Classes per week: the HOD sets it to the real workload (a 3-credit subject may be taught 4, 6 or 8 times a week). Empty = credit hours.
+      const body = { semester, program, code: pick.subject.subject.code, section: pick.section, teacher: teacherId };
+      if (teacherId) body.weeklyClasses = pick.weeklyClasses === '' ? null : Number(pick.weeklyClasses);
+      const { data: res } = await api.post('/teaching/assign', body);
       ok(res.message + (res.data.studentsEnrolled ? ` · ${res.data.studentsEnrolled} students enrolled` : ''));
       setPick(null);
       load();
@@ -257,7 +262,7 @@ export default function TeachingBoard() {
                     <div key={c._id} className={`cx-class ${c.teacher ? '' : 'none'}`} style={c.teacher ? colorFor(c.teacher.name) : undefined}>
                       <span className={`cx-av ${c.teacher ? '' : 'empty'}`}>{c.teacher ? initials(c.teacher.name) : '?'}</span>
                       <div className="grow">
-                        <div className="who"><span className="cx-sec" style={colorAt(i + 1)}>Sec {c.section}</span>{c.teacher ? c.teacher.name : <span style={{ color: '#b91c1c' }}>No teacher yet</span>}</div>
+                        <div className="who"><span className="cx-sec" style={colorAt(i + 1)}>Sec {c.section}</span>{c.teacher ? c.teacher.name : <span style={{ color: '#b91c1c' }}>No teacher yet</span>}{c.weeklyClasses ? <span className="muted small"> · {c.weeklyClasses} classes/week</span> : null}</div>
                         {c.status === 'archived' && <Badge value="archived" />}
                       </div>
                       {isHod && c.status === 'active' && (
@@ -296,6 +301,8 @@ export default function TeachingBoard() {
           subtitle={`${sem?.name || ''} · ${pick.subject.subject.creditHours} credit hours`}
           teachers={data.teachers}
           value={pick.teacher}
+          courseHours={Number(pick.weeklyClasses) || pick.subject.subject.creditHours || 0}
+          currentTeacherId={pick.currentTeacher}
           onChange={(id) => setPick({ ...pick, teacher: id })}
           extra={(
             <div className="inline-form" style={{ marginBottom: '.75rem' }}>
@@ -303,13 +310,17 @@ export default function TeachingBoard() {
                 <label>Section</label>
                 <input maxLength={10} disabled={pick.existing} value={pick.section} onChange={(e) => setPick({ ...pick, section: e.target.value.toUpperCase() })} />
               </div>
+              <div style={{ maxWidth: 240 }}>
+                <label>Classes per week (1 to 20)</label>
+                <input type="number" min={1} max={20} placeholder={`${pick.subject.subject.creditHours} (credit hours)`} value={pick.weeklyClasses} onChange={(e) => setPick({ ...pick, weeklyClasses: e.target.value })} />
+              </div>
             </div>
           )}
-          note="A new class is created from the curriculum the first time, and the students of this semester and section are enrolled in it. If the class is already on the timetable, the new teacher must be free at those times."
+          note="Classes per week is the real teaching workload of this subject. Leave it empty to use the credit hours. The teacher's weekly limit (set by the principal or the HOD under Users > Edit) is checked against it, and the timetable follows it. A new class is created from the curriculum the first time, and the students of this semester and section are enrolled in it. If the class is already on the timetable, the new teacher must be free at those times."
           canRemove={pick.existing && pick.hasTeacher}
           onRemove={() => save(null)}
           onSave={() => save(pick.teacher)}
-          saveDisabled={!pick.teacher || !pick.section}
+          saveDisabled={!pick.teacher || !pick.section || (pick.weeklyClasses !== '' && !(Number(pick.weeklyClasses) >= 1 && Number(pick.weeklyClasses) <= 20))}
           busy={busy}
           error={msg.type === 'error' ? msg.text : ''}
           onClose={() => { setPick(null); clear(); }}
