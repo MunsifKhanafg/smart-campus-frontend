@@ -8,12 +8,15 @@ import Logo from './Logo.jsx';
 export default function LogoPlate({ size = 48 }) {
   const logoUrl = useSelector((s) => s.settings.logoUrl);
   const [broken, setBroken] = useState(false);
-  useEffect(() => setBroken(false), [logoUrl]);
+  const [tries, setTries] = useState(0);
+  useEffect(() => { setBroken(false); setTries(0); }, [logoUrl]);
 
   if (!logoUrl || broken) return <Logo size={size} />;
+  // One quiet retry: right after a refresh the server may still be waking up (Vercel), which must not hide the logo for the whole visit.
+  const src = `${assetUrl(logoUrl)}${tries ? `${logoUrl.includes('?') ? '&' : '?'}retry=${tries}` : ''}`;
   return (
     <span className="logo-plate" style={{ height: size }}>
-      <img src={assetUrl(logoUrl)} alt="Logo" draggable={false} onError={() => setBroken(true)} />
+      <img src={src} alt="Logo" draggable={false} onError={() => (tries < 1 ? setTimeout(() => setTries(1), 1500) : setBroken(true))} />
     </span>
   );
 }
