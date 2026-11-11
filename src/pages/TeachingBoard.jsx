@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import api from '../api/axios.js';
 import { useFlash, Alert, Badge, fmtDate } from '../components/ui.jsx';
 import TeacherPicker from '../components/TeacherPicker.jsx';
+import { teacherFits } from '../components/teacherFit.js';
 import { colorAt, colorFor, initials } from '../components/palette.js';
 import { useConfirm } from '../components/ConfirmModal.jsx';
 
@@ -344,6 +345,7 @@ export default function TeachingBoard() {
           title={`${pick.subject.subject.code} — ${pick.subject.subject.title}`}
           subtitle={`${sem?.name || ''} · ${pick.subject.subject.creditHours} credit hours`}
           teachers={data.teachers}
+          fits={(t) => teacherFits(t, pick.subject.subject)} // opens on the teachers whose subjects fit; "All teachers" tab shows everybody
           value={pick.teacher}
           courseHours={Number(pick.weeklyClasses) || pick.subject.subject.creditHours || 0}
           currentTeacherId={pick.currentTeacher}

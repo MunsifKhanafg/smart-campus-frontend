@@ -59,6 +59,14 @@
 .md .md-table { overflow-x: auto; max-width: 100%; }
 .md table { border-collapse: collapse; font-size: .85rem; } .md th, .md td { border: 1px solid var(--border, #e2e8f0); padding: .3rem .55rem; }
 
+/* People found by a records search */
+.as-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: .5rem; margin-top: .6rem; }
+.as-card { display: flex; align-items: center; gap: .55rem; text-align: left; border: 1px solid var(--border, #e2e8f0); background: #fff; border-radius: 12px; padding: .5rem .65rem; font: inherit; cursor: pointer; color: inherit; min-width: 0; }
+.as-card:hover { border-color: var(--primary-light, #6366f1); background: var(--primary-soft, #eef2ff); }
+.as-card-ico { font-size: 1.4rem; }
+.as-card b, .as-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.as-card small { color: var(--muted, #64748b); }
+
 /* Phone: history becomes a slide-in panel; the chat uses the full width */
 @media (max-width: 800px) {
   .as { grid-template-columns: 1fr; height: calc(100dvh - 90px); }

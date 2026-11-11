@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/authSlice.js';
 import api from '../api/axios.js';
 import Brand from './Brand.jsx';
+import Avatar from './Avatar.jsx';
 import LogoToggles from './LogoToggles.jsx';
 import useResponsiveTables from './useResponsiveTables.js';
 
@@ -20,7 +21,7 @@ const ROLE_LABEL = {
 const MENU = {
   university_head: [
     { items: [['/dashboard', 'Dashboard']] },
-    { title: 'University', items: [['/departments', 'Departments'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/applications', 'New Applications'], ['/attendance', 'Attendance']] },
+    { title: 'University', items: [['/departments', 'Departments'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/applications', 'New Applications'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance']] },
     { title: 'Finance', items: [['/finance-overview', 'Finance Overview'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists']] },
     { title: 'Academics', items: [['/curriculum', 'BS Curriculum'], ['/insights', 'Reports & Insights']] },
     { title: 'Communication', items: [['/assistant', 'AI Assistant'], ['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar'], ['/complaints', 'Complaints']] },
@@ -28,7 +29,7 @@ const MENU = {
   ],
   hod: [
     { items: [['/dashboard', 'Dashboard']] },
-    { title: 'My department', items: [['/departments', 'My Department'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/attendance', 'Attendance']] },
+    { title: 'My department', items: [['/departments', 'My Department'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance']] },
     { title: 'Academics', items: [['/semesters', 'Semesters'], ['/curriculum', 'BS Curriculum'], ['/assign-teachers', 'Assign Teachers'], ['/courses', 'Courses'], ['/timetable', 'Timetable'], ['/examinations', 'Examinations']] },
     { title: 'Students & fees', items: [['/applications', 'New Applications'], ['/admissions', 'Exam Admissions'], ['/documents', 'Student Documents'], ['/fee-notices', 'Fee Notices'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists']] },
     { title: 'Support', items: [['/assistant', 'AI Assistant'], ['/complaints', 'Complaints'], ['/insights', 'Reports & Insights'], ['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar']] },
@@ -36,17 +37,17 @@ const MENU = {
   finance_officer: [
     { items: [['/dashboard', 'Dashboard']] },
     { title: 'Money', items: [['/finance-overview', 'Finance Overview'], ['/fee-notices', 'Fee Notices'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists'], ['/finance', 'Finance Desk']] },
-    { title: 'Students', items: [['/admissions', 'Exam Admissions'], ['/complaints', 'Fee Complaints']] },
+    { title: 'Students', items: [['/assistant', 'AI Assistant'], ['/admissions', 'Exam Admissions'], ['/complaints', 'Fee Complaints']] },
     { title: 'Updates', items: [['/announcements', 'Announcements']] },
   ],
   teacher: [
     { items: [['/dashboard', 'Dashboard']] },
-    { title: 'Teaching', items: [['/courses', 'My Courses'], ['/assistant', 'AI Assistant'], ['/my-timetable', 'My Timetable'], ['/my-attendance', 'Attendance'], ['/examinations', 'Exam Date Sheet']] },
+    { title: 'Teaching', items: [['/courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/staff-attendance', 'My Check-in & Leave'], ['/my-attendance', 'Student Attendance'], ['/examinations', 'Exam Date Sheet']] },
     { title: 'Updates', items: [['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar']] },
   ],
   student: [
     { items: [['/dashboard', 'Dashboard']] },
-    { title: 'Study', items: [['/my-courses', 'My Courses'], ['/assistant', 'AI Assistant'], ['/my-timetable', 'My Timetable'], ['/calendar', 'Academic Calendar']] },
+    { title: 'Study', items: [['/my-courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/calendar', 'Academic Calendar']] },
     { title: 'Exams & results', items: [['/exams', 'Exams & Admission'], ['/results', 'My Results'], ['/my-performance', 'Academic Support']] },
     { title: 'Fees & records', items: [['/fees', 'Fees & Payments'], ['/documents', 'My Documents'], ['/my-record', 'My Academic Record']] },
     { title: 'Help', items: [['/complaints', 'Complaints'], ['/announcements', 'Announcements']] },
@@ -54,7 +55,7 @@ const MENU = {
 };
 
 const ICON = {
-  '/dashboard': '🏠', '/departments': '🏛️', '/teachers': '👩‍🏫', '/students': '🎓', '/attendance': '✅', '/my-attendance': '✅', '/users': '👥',
+  '/dashboard': '🏠', '/staff-attendance': '🕐', '/departments': '🏛️', '/teachers': '👩‍🏫', '/students': '🎓', '/attendance': '✅', '/my-attendance': '✅', '/users': '👥',
   '/semesters': '📚', '/courses': '📘', '/timetable': '🕘', '/my-timetable': '🕘', '/examinations': '📝', '/fee-notices': '🧾',
   '/finance': '💰', '/finance-overview': '📈', '/promotion-fees': '🪜', '/fee-reminders': '⏰', '/admissions': '🪪', '/documents': '📄', '/complaints': '📣', '/insights': '📊', '/calendar': '📅',
   '/announcements': '📢', '/settings': '⚙️', '/my-courses': '📘', '/exams': '📝', '/results': '🏆', '/fees': '💳',
@@ -121,6 +122,7 @@ export default function Layout() {
 
         {/* On a phone the top bar is small, so the account and the sign-out button are always here at the bottom of the menu too. */}
         <div className="side-foot">
+          <div style={{ marginBottom: '.5rem' }}><Avatar user={user} size={46} /></div>
           <div className="side-user">
             <b>{user.name}</b>
             <small>{ROLE_LABEL[user.role]}{user.department ? ` · ${user.department.code}` : ''}</small>
@@ -138,6 +140,7 @@ export default function Layout() {
           <NavLink to="/notifications" className="bell" aria-label="Notifications" title="Notifications">
             🔔{unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}
           </NavLink>
+          <NavLink to="/account" className="top-avatar" aria-label="My photo and details" title="My photo and details"><Avatar user={user} size={36} /></NavLink>
           <div className="who">
             <strong>{user.name}</strong>
             <span>{ROLE_LABEL[user.role]}{user.department ? ` · ${user.department.code}` : ''}</span>

@@ -45,6 +45,7 @@ import DepartmentDetail from './pages/DepartmentDetail.jsx';
 import SemesterDetail from './pages/SemesterDetail.jsx';
 import Attendance from './pages/Attendance.jsx';
 import TeacherAttendance from './pages/TeacherAttendance.jsx';
+import StaffAttendance from './pages/StaffAttendance.jsx';
 import Teachers from './pages/Teachers.jsx';
 import Account from './pages/Account.jsx';
 import Curriculum from './pages/Curriculum.jsx';
@@ -114,9 +115,14 @@ export default function App() {
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/timetable" element={<TimetableEntry />} />
 
-          {/* AI assistant: students, teachers, HODs and the principal */}
-          <Route element={<ProtectedRoute roles={[STU, TEA, HOD, HEAD]} />}>
+          {/* AI assistant: only the principal, HODs and the finance office (it searches records). Not for students or teachers. */}
+          <Route element={<ProtectedRoute roles={[HEAD, HOD, FIN]} />}>
             <Route path="/assistant" element={<Assistant />} />
+          </Route>
+
+          {/* The teachers' own attendance (check-in, leave) and, for the principal / HOD, the staff attendance of the day */}
+          <Route element={<ProtectedRoute roles={[HEAD, HOD, TEA]} />}>
+            <Route path="/staff-attendance" element={<StaffAttendance />} />
           </Route>
 
           {/* University head and HOD */}

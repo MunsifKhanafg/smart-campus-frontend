@@ -8,7 +8,6 @@ import Assignments from './course/Assignments.jsx';
 import Quizzes from './course/Quizzes.jsx';
 import AttendanceTab from './course/AttendanceTab.jsx';
 import MarksTab from './course/MarksTab.jsx';
-import AssistantTab from './course/AssistantTab.jsx';
 import PerformanceTab from './course/PerformanceTab.jsx';
 import ClassList from './course/ClassList.jsx';
 import NumberedContents from '../components/NumberedContents.jsx';
@@ -39,7 +38,6 @@ export default function CourseWorkspace() {
   const tabs = [['topics', 'Topics'], ['assignments', 'Assignments'], ['quizzes', 'Quizzes'], ['attendance', 'Attendance']];
   if (!isStudent) tabs.push(['students', 'Class list']);
   if (!isStudent) tabs.push(['marks', 'Exam marks']);
-  if (role === 'student' || role === 'teacher') tabs.push(['assistant', 'Course notes Q&A']);
   if (!isStudent) tabs.push(['performance', 'Student support']);
   tabs.push(['about', 'Course contents']);
 
@@ -61,7 +59,6 @@ export default function CourseWorkspace() {
           {tab === 'attendance' && <AttendanceTab courseId={courseId} role={role} />}
           {tab === 'students' && !isStudent && <ClassList course={course} role={role} />}
           {tab === 'marks' && !isStudent && <MarksTab courseId={courseId} role={role} />}
-          {tab === 'assistant' && <AssistantTab courseId={courseId} />}
           {tab === 'performance' && !isStudent && <PerformanceTab courseId={courseId} />}
           {tab === 'about' && (
             <div className="card">

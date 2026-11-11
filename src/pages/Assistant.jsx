@@ -16,15 +16,16 @@ const STARTERS = {
   questions: ['10 short questions with answer key on operating system scheduling, 20 marks'],
   rubric: ['Rubric for a 10-mark presentation on a software design pattern'],
   people: ['List all teachers with their qualification, email and subjects', 'Show all students with roll numbers and semesters', 'How many students are in each semester?', 'Who is the HOD of each department?', 'Show students of semester 3'],
+  records: ['CS-S1-03 (shows everything about the student)', 'attendance of CS-S1-03', 'fees of CS-S1-03', 'exam result of CS-S1-03', 'A teacher: type the name or email to see their courses', 'A course code, for example CS-101'],
   campus: ['Who teaches my subjects, and how can I contact them?', 'Show my weekly timetable', 'List the course contents of each of my subjects', 'How many credit hours do my subjects have in total?'],
 };
 
 export default function Assistant() {
   const { user } = useSelector((s) => s.auth);
-  const isStudent = user.role === 'student';
+  const canSeeCourses = user.role !== 'finance_officer'; // the finance office cannot list courses, it only searches records
   const [modes, setModes] = useState([]);
   const [configured, setConfigured] = useState(true);
-  const [mode, setMode] = useState('general');
+  const [mode, setMode] = useState('records');
   const [chats, setChats] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -41,13 +42,19 @@ export default function Assistant() {
   const loadChats = useCallback(() => api.get('/ai/conversations').then((r) => setChats(r.data.data)).catch(() => {}), []);
 
   useEffect(() => {
-    api.get('/ai/modes').then((r) => { setModes(r.data.data.modes); setConfigured(r.data.data.configured); }).catch((e) => setError(errorMessage(e)));
+    api.get('/ai/modes').then((r) => {
+      const list = r.data.data.modes;
+      setModes(list);
+      setConfigured(r.data.data.configured);
+      // Start in "Search records" (it works without an AI key). Fall back to the first option this role really has.
+      setMode((m) => (list.some((x) => x.id === m) ? m : list.find((x) => x.id === 'records')?.id || list[0]?.id || m));
+    }).catch((e) => setError(errorMessage(e)));
     loadChats();
-    const load = isStudent
-      ? api.get('/enrollments/my-courses').then((r) => r.data.data.map((x) => ({ id: x.course._id, label: `${x.course.code} · ${x.course.title}` })))
-      : api.get('/courses', { params: { status: 'active' } }).then((r) => r.data.data.map((c) => ({ id: c._id, label: `${c.code} · ${c.title}${c.section ? ` (${c.section})` : ''}` })));
-    load.then(setCourses).catch(() => {});
-  }, [isStudent, loadChats]);
+    if (!canSeeCourses) return;
+    api.get('/courses', { params: { status: 'active' } })
+      .then((r) => setCourses(r.data.data.map((c) => ({ id: c._id, label: `${c.code} · ${c.title}${c.section ? ` (${c.section})` : ''}` }))))
+      .catch(() => {});
+  }, [canSeeCourses, loadChats]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages, busy]);
 
@@ -60,7 +67,7 @@ export default function Assistant() {
       const { data } = await api.get(`/ai/conversations/${id}`);
       setActiveId(id);
       setMessages(data.data.messages);
-      setMode(data.data.mode || (data.data.course ? 'course' : 'general'));
+      setMode(modes.some((x) => x.id === data.data.mode) ? data.data.mode : (modes.find((x) => x.id === 'records')?.id || mode));
       if (data.data.course) setCourse(data.data.course);
       setError('');
       setDrawer(false);
@@ -92,7 +99,7 @@ export default function Assistant() {
       const { data } = await api.post('/ai/chat', { message, mode, conversationId: activeId || undefined, course: mode === 'course' ? course || undefined : undefined });
       const r = data.data;
       setActiveId(r.conversationId);
-      setMessages((m) => [...m, { role: 'assistant', content: r.answer, sources: r.sources, grounded: r.grounded }]);
+      setMessages((m) => [...m, { role: 'assistant', content: r.answer, sources: r.sources, grounded: r.grounded, cards: r.cards }]);
       loadChats();
     } catch (e) {
       setMessages((m) => m.slice(0, -1));
@@ -141,18 +148,21 @@ export default function Assistant() {
           <button type="button" className="btn btn-ghost as-hist" onClick={() => setDrawer(true)}>☰ History</button>
           <div className="grow">
             <h2>AI Assistant</h2>
-            <span className="muted small">{current ? `${current.icon} ${current.label}: ${current.hint}` : 'Ask anything about your studies'}</span>
+            <span className="muted small">Type a roll number or a student's name. Add "attendance", "fees" or "result" to see only that.</span>
           </div>
           <button type="button" className="btn btn-ghost" onClick={newChat}>New chat</button>
         </header>
 
-        <div className="as-modes" role="tablist" aria-label="Assistant options">
-          {modes.map((m) => (
-            <button key={m.id} type="button" role="tab" aria-selected={mode === m.id} className={`as-chip ${mode === m.id ? 'on' : ''}`} onClick={() => setMode(m.id)} title={m.hint}>
-              <span>{m.icon}</span> {m.label}
-            </button>
-          ))}
-        </div>
+        {/* One option only (the records search), so there is no menu of tools to choose from. */}
+        {modes.length > 1 && (
+          <div className="as-modes" role="tablist" aria-label="Assistant options">
+            {modes.map((m) => (
+              <button key={m.id} type="button" role="tab" aria-selected={mode === m.id} className={`as-chip ${mode === m.id ? 'on' : ''}`} onClick={() => setMode(m.id)} title={m.hint}>
+                <span>{m.icon}</span> {m.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {mode === 'course' && (
           <div className="as-course">
@@ -164,7 +174,7 @@ export default function Assistant() {
             <small className="muted">Answers come only from the notes your teacher uploaded for this course.</small>
           </div>
         )}
-        {!configured && !['course', 'campus', 'people'].includes(mode) && <div className="alert alert-info">The AI model is not switched on yet. The administrator must add the AI key on the server. Course materials still work.</div>}
+        {!configured && !['records', 'course', 'campus', 'people'].includes(mode) && <div className="alert alert-info">The AI model is not switched on, so this option answers by searching the records instead. Searching records never needs an AI key.</div>}
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="as-scroll" ref={boxRef}>
@@ -183,6 +193,16 @@ export default function Assistant() {
               <div className="as-av">{m.role === 'user' ? (user.name || '?')[0] : '🤖'}</div>
               <div className="as-bubble">
                 {m.role === 'assistant' ? <Markdown text={m.content} /> : <p className="as-user-text">{m.content}</p>}
+                {m.role === 'assistant' && m.cards?.length > 0 && (
+                  <div className="as-cards">
+                    {m.cards.map((c) => (
+                      <button key={`${c.kind}-${c.id}`} type="button" className="as-card" onClick={() => send(c.kind === 'student' ? `${c.subtitle.split(' · ')[0]}` : c.name)} title="Show everything about this person">
+                        <span className="as-card-ico">{c.kind === 'student' ? '🎓' : '👩‍🏫'}</span>
+                        <span><b>{c.name}</b><small>{c.subtitle}</small></span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {m.role === 'assistant' && m.sources?.length > 0 && (
                   <div className="as-sources">Sources: {m.sources.map((s) => `${s.topic || 'Material'} (${s.fileName})`).join(', ')}</div>
                 )}
