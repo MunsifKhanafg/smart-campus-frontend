@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import api from '../api/axios.js';
 import { loadMe, changePassword } from '../store/authSlice.js';
 import { useConfirm } from '../components/ConfirmModal.jsx';
+import ProfileDetails from '../components/ProfileDetails.jsx';
 import { useFlash, Alert, Badge, Tabs, fmtDateTime } from '../components/ui.jsx';
 
 const ROLE_LABEL = { university_head: 'University Head', hod: 'HOD', finance_officer: 'Finance Officer', teacher: 'Teacher', student: 'Student' };
@@ -32,11 +33,12 @@ export default function Account() {
       <p className="muted">{ROLE_LABEL[user.role]}{user.lastLogin ? ` · last login ${fmtDateTime(user.lastLogin)}` : ''}</p>
       <Alert msg={msg} />
       <Tabs
-        tabs={[['profile', 'Profile & email'], ['password', 'Password'], ...(isHead ? [['access', 'Access control']] : [])]}
+        tabs={[['profile', 'Profile & email'], ['photo', user.role === 'student' ? 'My photo' : 'Photo & education'], ['password', 'Password'], ...(isHead ? [['access', 'Access control']] : [])]}
         active={tab}
         onChange={(t) => { setTab(t); clear(); }}
       />
       {tab === 'profile' && <Profile user={user} dispatch={dispatch} ok={ok} fail={fail} />}
+      {tab === 'photo' && <ProfileDetails userId={user._id} onPhotoChanged={() => dispatch(loadMe())} />}
       {tab === 'password' && <Password dispatch={dispatch} ok={ok} fail={fail} />}
       {tab === 'access' && isHead && <Access me={user} confirm={confirm} ok={ok} fail={fail} />}
     </>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../api/axios.js';
 import { useFlash, Alert, Badge, fmtDate, money } from '../components/ui.jsx';
+import PersonPhoto from '../components/PersonPhoto.jsx';
 
 const pct = (v) => (v == null ? '—' : `${v}%`);
 
@@ -29,6 +30,17 @@ export default function StudentRecord() {
       <div className="card">
         <div className="cols-2">
           <div>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '.8rem' }}>
+              <PersonPhoto userId={profile.user?._id} size={96} />
+              <dl className="pr-facts" style={{ flex: 1, minWidth: 220 }}>
+                <dt>Email</dt><dd>{profile.user?.email}</dd>
+                {profile.user?.phone && <><dt>Phone</dt><dd>{profile.user.phone}</dd></>}
+                {profile.dateOfBirth && <><dt>Date of birth</dt><dd>{fmtDate(profile.dateOfBirth)}</dd></>}
+                {profile.admissionYear && <><dt>Admitted</dt><dd>{profile.admissionYear}</dd></>}
+                {profile.guardianName && <><dt>Guardian</dt><dd>{profile.guardianName}{profile.guardianPhone ? ` · ${profile.guardianPhone}` : ''}</dd></>}
+                {profile.address && <><dt>Address</dt><dd>{profile.address}</dd></>}
+              </dl>
+            </div>
             <div>Department: <strong>{profile.department?.name}</strong></div>
             <div>Current semester: <strong>{profile.semester?.name || 'Not placed yet'}</strong></div>
             <div>Section: {profile.section} · Status: <Badge value={profile.status} /></div>

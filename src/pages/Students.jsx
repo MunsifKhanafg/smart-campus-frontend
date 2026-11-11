@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import api from '../api/axios.js';
 import { useConfirm } from '../components/ConfirmModal.jsx';
 import { useFlash, Alert, Badge } from '../components/ui.jsx';
+import Avatar from '../components/Avatar.jsx';
 
 const EMPTY = { name: '', email: '', password: '', rollNumber: '', semester: '', section: 'A', dateOfBirth: '', department: '' };
 
@@ -205,7 +206,7 @@ export default function Students() {
               <tr key={p._id}>
                 {isHod && <td><input type="checkbox" checked={selected.includes(p._id)} onChange={() => toggle(p._id)} /></td>}
                 <td>{p.rollNumber}</td>
-                <td>{p.user?.name}<div className="muted small">{p.user?.email}</div></td>
+                <td><div style={{ display: 'flex', alignItems: 'center', gap: '.6rem' }}><Avatar user={p.user} size={36} /><div>{p.user?.name}<div className="muted small">{p.user?.email}</div></div></div></td>
                 <td>{p.department?.code}</td>
                 <td>{p.semester?.name || <em className="muted">Not placed</em>}</td>
                 <td>{p.section}</td>

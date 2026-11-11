@@ -4,6 +4,8 @@ import { useSelector } from 'react-redux';
 import api, { errorMessage } from '../api/axios.js';
 import TeacherEditPanel from '../components/TeacherEditPanel.jsx';
 import { useConfirm } from '../components/ConfirmModal.jsx';
+import Avatar from '../components/Avatar.jsx';
+import ProfileDetails from '../components/ProfileDetails.jsx';
 
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1, 3) : '');
 
@@ -94,7 +96,7 @@ export default function TeacherDetail() {
 
       <div className="hero">
         <div className="person-card" style={{ background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.3)', cursor: 'default', boxShadow: 'none' }}>
-          <div className="avatar" style={{ width: 64, height: 64, fontSize: '1.8rem', background: 'rgba(255,255,255,.25)' }}>{teacher.name[0]}</div>
+          <Avatar user={teacher} size={64} />
         </div>
         <div className="grow">
           <h1>{teacher.name} {teacher.role === 'hod' && <span className="badge">HOD</span>}</h1>
@@ -111,6 +113,9 @@ export default function TeacherDetail() {
           onSaved={(u) => setTeacher((t) => ({ ...t, name: u.name, email: u.email, phone: u.phone, qualification: u.qualification }))}
         />
       )}
+
+      {/* Photo, education, degrees and experience. The principal and the HOD of the department can change them; everybody can read the professional part. */}
+      <ProfileDetails userId={teacherId} showHero={false} onPhotoChanged={(p) => setTeacher((t) => ({ ...t, ...p }))} />
 
       <div className="tiles">
         <div className="tile"><div className="ico">📘</div><div><b>{active.length}</b><span>Subjects / classes</span></div></div>
