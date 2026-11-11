@@ -5,17 +5,10 @@ import { splitContents } from './contentsUtil.js';
 
 export { splitContents };
 
-const addDays = (iso, days) => {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-};
-
 // "Course contents" of the subject, taken from the BS curriculum when the HOD assigned the teacher, shown as a numbered list.
-// The teacher can turn them into daily topics with one click (dates are spread out; each topic can be edited afterwards).
+// One click turns the numbered contents into topics and the smart scheduler gives every class 2 to 3 of them, on the real
+// teaching days of this teacher (weekly schedule, holidays, exams and vacations are skipped) so the course ends inside the semester.
 export default function ContentsCard({ outline, courseId, canEdit, topicCount, onCreated, ok, fail }) {
-  const [start, setStart] = useState(new Date().toISOString().slice(0, 10));
-  const [gap, setGap] = useState(3);
   const [busy, setBusy] = useState(false);
 
   if (!outline) {
@@ -30,19 +23,18 @@ export default function ContentsCard({ outline, courseId, canEdit, topicCount, o
   const items = splitContents(outline);
 
   const create = async () => {
-    const warn = topicCount > 0 ? `\n\nThis course already has ${topicCount} topic(s). The new ones are added after them.` : '';
-    if (!window.confirm(`Create ${items.length} topics from the course contents, one every ${gap} day(s) starting ${start}?${warn}`)) return;
+    const warn = topicCount > 0 ? `\n\nThis course already has ${topicCount} topic(s). The new ones are added after them and the whole plan is arranged again.` : '';
+    if (!window.confirm(`Create ${items.length} numbered topics from the course contents and plan them over your teaching days (2 to 3 topics per class)?${warn}`)) return;
     setBusy(true);
     try {
-      for (const [i, title] of items.entries()) {
-        await api.post('/topics', { course: courseId, title, description: '', scheduledDate: addDays(start, i * gap) });
-      }
-      ok(`${items.length} topics created. Edit any date or add files below`);
-      onCreated();
+      const r = await api.post(`/teaching-calendar/course/${courseId}/schedule`, { titles: items });
+      ok(r.data.message || `${items.length} topics planned`);
     } catch (err) {
       fail(err);
+    } finally {
+      setBusy(false);
       onCreated();
-    } finally { setBusy(false); }
+    }
   };
 
   return (
@@ -51,10 +43,8 @@ export default function ContentsCard({ outline, courseId, canEdit, topicCount, o
       <NumberedContents text={outline} />
       {canEdit && items.length > 0 && (
         <div className="inline-form">
-          <div><label>First teaching date</label><input type="date" value={start} onChange={(e) => setStart(e.target.value)} /></div>
-          <div><label>Days between topics</label><input type="number" min={1} max={30} value={gap} onChange={(e) => setGap(Math.max(1, Number(e.target.value) || 1))} /></div>
-          <button type="button" className="btn btn-primary" disabled={busy || !start} onClick={create}>
-            {busy ? 'Creating…' : `Create ${items.length} topics from these contents`}
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={create}>
+            {busy ? 'Planning…' : `Plan ${items.length} topics over the semester`}
           </button>
         </div>
       )}

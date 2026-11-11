@@ -244,6 +244,8 @@ function ApprovalsPanel({ isHead, ok, fail, onChange }) {
   const [open, setOpen] = useState(null); // request whose subjects are shown
   const [detail, setDetail] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState([]); // subject codes the HOD ticks to offer while approving
+  const [sectionsText, setSectionsText] = useState('A');
 
   const load = useCallback(() => {
     api.get('/curriculum/requests', { params: status ? { status } : {} }).then((r) => setRows(r.data.data)).catch(fail);
@@ -254,8 +256,14 @@ function ApprovalsPanel({ isHead, ok, fail, onChange }) {
     if (open === r._id) { setOpen(null); setDetail(null); return; }
     setOpen(r._id);
     setDetail(null);
-    try { setDetail((await api.get(`/curriculum/requests/${r._id}`)).data.data); } catch (err) { fail(err); }
+    try {
+      const d = (await api.get(`/curriculum/requests/${r._id}`)).data.data;
+      setDetail(d);
+      // Pre-ticked: the compulsory subjects of every semester. Elective options are ticked by the HOD; "Specialization Elective" slots (XX) cannot be offered.
+      setPicked((d.snapshot?.semesters || []).flatMap((s) => s.subjects.filter((x) => !x.elective && !/XX/.test(x.code)).map((x) => x.code)));
+    } catch (err) { fail(err); }
   };
+  const togglePick = (code) => setPicked((p) => (p.includes(code) ? p.filter((c) => c !== code) : [...p, code]));
 
   const decide = async (r, decision) => {
     const approve = decision === 'approve';
@@ -272,7 +280,14 @@ function ApprovalsPanel({ isHead, ok, fail, onChange }) {
     if (message === null) return; // cancelled
     setBusy(true);
     try {
-      const { data } = await api.post(`/curriculum/requests/${r._id}/decide`, { decision, message });
+      const body = { decision, message };
+      // The HOD's selection is sent only after the subjects were opened and looked at on this request.
+      if (approve && r.type === 'add' && open === r._id && detail) {
+        body.offer = picked;
+        body.sections = [...new Set(sectionsText.split(/[\s,;]+/).map((x) => x.trim().toUpperCase()).filter(Boolean))];
+        if (!body.sections.length) body.sections = ['A'];
+      }
+      const { data } = await api.post(`/curriculum/requests/${r._id}/decide`, body);
       ok(data.message);
       setOpen(null);
       load();
@@ -353,13 +368,28 @@ function ApprovalsPanel({ isHead, ok, fail, onChange }) {
           {open === r._id && (
             <div className="cols-2 mt">
               {!detail && <p className="muted">Loading subjects...</p>}
+              {detail && !isHead && r.status === 'pending' && r.type === 'add' && (
+                <div className="sub-card" style={{ gridColumn: '1 / -1' }}>
+                  <b>Choose the subjects to offer ({picked.length} ticked)</b>
+                  <p className="muted small" style={{ margin: '.25rem 0' }}>
+                    The whole curriculum is saved. Only the subjects you tick become classes (for the open semester with the same number), so a semester shows its 5 subjects and not all 20.
+                    Elective options are not ticked: tick the ones you want. You can change this later on the Assign Teachers page.
+                  </p>
+                  <div className="inline-form">
+                    <div style={{ maxWidth: 200 }}>
+                      <label>Sections</label>
+                      <input value={sectionsText} placeholder="A, B" onChange={(e) => setSectionsText(e.target.value.toUpperCase())} />
+                    </div>
+                  </div>
+                </div>
+              )}
               {detail?.snapshot?.semesters?.map((s) => (
                 <div className="sub-card" key={s.number}>
                   <h4>Semester {s.number}</h4>
                   <table><tbody>
                     {s.subjects.map((x) => (
                       <Fragment key={x.code}>
-                        <tr><td><b>{x.code}</b></td><td>{x.title}{x.elective && <span className="badge pending" style={{ marginLeft: 6 }}>elective</span>}</td><td className="right">{x.creditHours} cr</td></tr>
+                        <tr>{!isHead && r.status === 'pending' && r.type === 'add' && <td style={{ width: 30 }}>{/XX/.test(x.code) ? null : <input type="checkbox" title="Tick to offer this subject" checked={picked.includes(x.code)} onChange={() => togglePick(x.code)} />}</td>}<td><b>{x.code}</b></td><td>{x.title}{x.elective && <span className="badge pending" style={{ marginLeft: 6 }}>elective</span>}</td><td className="right">{x.creditHours} cr</td></tr>
                         {x.outline && <tr><td /><td colSpan={2} className="small"><NumberedContents text={x.outline} compact /></td></tr>}
                       </Fragment>
                     ))}

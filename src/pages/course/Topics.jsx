@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import api from '../../api/axios.js';
 import ContentsCard from '../../components/ContentsCard.jsx';
+import SchedulePlanner from '../../components/SchedulePlanner.jsx';
 import { useConfirm } from '../../components/ConfirmModal.jsx';
 import { useFlash, Alert, Badge, FileLink, fmtDate, toInputDate } from '../../components/ui.jsx';
 
@@ -14,9 +15,10 @@ export default function Topics({ courseId, canEdit, outline }) {
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState(null);
   const [picked, setPicked] = useState({}); // topicId -> FileList
+  const [rev, setRev] = useState(0); // bumped whenever the topics change, so the planner summary reloads
 
   const load = useCallback(
-    () => api.get('/topics', { params: { course: courseId } }).then((r) => setTopics(r.data.data)).catch(fail),
+    () => api.get('/topics', { params: { course: courseId } }).then((r) => { setTopics(r.data.data); setRev((n) => n + 1); }).catch(fail),
     [courseId, fail]
   );
   useEffect(() => { load(); }, [load]);
@@ -72,6 +74,7 @@ export default function Topics({ courseId, canEdit, outline }) {
     <>
       <Alert msg={msg} />
       <ContentsCard outline={outline} courseId={courseId} canEdit={canEdit} topicCount={topics.length} onCreated={load} ok={ok} fail={fail} />
+      {canEdit && <SchedulePlanner courseId={courseId} refreshKey={rev} onChanged={load} ok={ok} fail={fail} />}
       {canEdit && (
         <form className="card" onSubmit={save}>
           <h3>{editId ? 'Edit topic' : 'New topic'}</h3>
@@ -91,10 +94,10 @@ export default function Topics({ courseId, canEdit, outline }) {
       )}
 
       {!topics.length && <div className="card muted">No topics yet.</div>}
-      {topics.map((t) => (
+      {topics.map((t, i) => (
         <div className="sub-card" key={t._id}>
           <div className="row-between">
-            <h4>{t.title}</h4>
+            <h4>Topic {t.sequence || i + 1}: {t.title}</h4>
             <Badge value={t.state} />
           </div>
           <div className="muted small">Teaching date: {fmtDate(t.scheduledDate)}{t.availableUntil ? ` · available until ${fmtDate(t.availableUntil)}` : ''}</div>
