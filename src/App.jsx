@@ -58,6 +58,8 @@ import TrackApplication from './pages/TrackApplication.jsx';
 import MeritList from './pages/MeritList.jsx';
 import Applications from './pages/Applications.jsx';
 import Assistant from './pages/Assistant.jsx';
+import StudentLeave from './pages/StudentLeave.jsx';
+import SupportStaff from './pages/SupportStaff.jsx';
 
 // The University Head browses students by department boxes; an HOD uses the full management page.
 function StudentsEntry() {
@@ -85,6 +87,14 @@ export default function App() {
   useEffect(() => {
     dispatch(fetchPublicSettings());
     if (localStorage.getItem(TOKEN_KEY)) dispatch(loadMe());
+  }, [dispatch]);
+
+  // A changed project name or logo shows in every open tab: the public settings are read again whenever the tab becomes active.
+  useEffect(() => {
+    const again = () => { if (document.visibilityState === 'visible') dispatch(fetchPublicSettings()); };
+    document.addEventListener('visibilitychange', again);
+    window.addEventListener('online', again);
+    return () => { document.removeEventListener('visibilitychange', again); window.removeEventListener('online', again); };
   }, [dispatch]);
 
   return (
@@ -120,13 +130,19 @@ export default function App() {
             <Route path="/assistant" element={<Assistant />} />
           </Route>
 
-          {/* The teachers' own attendance (check-in, leave) and, for the principal / HOD, the staff attendance of the day */}
-          <Route element={<ProtectedRoute roles={[HEAD, HOD, TEA]} />}>
+          {/* The staff's own attendance (check-in, leave): teachers, HODs and the finance officer. The principal / HOD also see the staff of the day */}
+          <Route element={<ProtectedRoute roles={[HEAD, HOD, TEA, FIN]} />}>
             <Route path="/staff-attendance" element={<StaffAttendance />} />
+          </Route>
+
+          {/* Student leave: the student asks, the HOD decides, the principal sees everything */}
+          <Route element={<ProtectedRoute roles={[STU, HOD, HEAD]} />}>
+            <Route path="/student-leave" element={<StudentLeave />} />
           </Route>
 
           {/* University head and HOD */}
           <Route element={<ProtectedRoute roles={[HEAD, HOD]} />}>
+            <Route path="/support-staff" element={<SupportStaff />} />
             <Route path="/departments" element={<Departments />} />
             <Route path="/departments/:deptId" element={<DepartmentDetail />} />
             <Route path="/departments/:deptId/semesters/:semId" element={<SemesterDetail />} />

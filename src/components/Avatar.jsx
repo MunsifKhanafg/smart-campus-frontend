@@ -9,15 +9,16 @@ import { colorFor, initials } from './palette.js';
 // (menu, lists, profile ...). When a new photo is uploaded, photoUpdatedAt changes and every place refreshes by itself.
 //
 //   <Avatar user={{ _id, name, hasPhoto, photoUpdatedAt }} size={44} />
+//   <Avatar user={staff} photoBase="/support-staff/photo" />   (Class IV staff photos live under their own path)
 
-const cache = new Map(); // "id:version" -> Promise<objectURL | null>
+const cache = new Map(); // "base:id:version" -> Promise<objectURL | null>
 
-const load = (id, version) => {
-  const key = `${id}:${version || ''}`;
+const load = (base, id, version) => {
+  const key = `${base}:${id}:${version || ''}`;
   if (!cache.has(key)) {
     cache.set(
       key,
-      api.get(`/photos/${id}`, { responseType: 'blob' })
+      api.get(`${base}/${id}`, { responseType: 'blob' })
         .then((r) => URL.createObjectURL(r.data))
         .catch(() => null)
     );
@@ -26,9 +27,9 @@ const load = (id, version) => {
 };
 
 // Forget a person's cached picture right after a new upload, so every Avatar asks again.
-export const forgetPhoto = (id) => { for (const k of [...cache.keys()]) if (k.startsWith(`${id}:`)) cache.delete(k); };
+export const forgetPhoto = (id) => { for (const k of [...cache.keys()]) if (k.split(':')[1] === String(id)) cache.delete(k); };
 
-export default function Avatar({ user, size = 40, className = '', square = false }) {
+export default function Avatar({ user, size = 40, className = '', square = false, photoBase = '/photos' }) {
   const id = user?._id;
   const version = user?.photoUpdatedAt ? new Date(user.photoUpdatedAt).getTime() : '';
   const [src, setSrc] = useState(null);
@@ -36,9 +37,9 @@ export default function Avatar({ user, size = 40, className = '', square = false
   useEffect(() => {
     let live = true;
     setSrc(null);
-    if (id && user?.hasPhoto) load(id, version).then((url) => { if (live) setSrc(url); });
+    if (id && user?.hasPhoto) load(photoBase, id, version).then((url) => { if (live) setSrc(url); });
     return () => { live = false; };
-  }, [id, version, user?.hasPhoto]);
+  }, [id, version, user?.hasPhoto, photoBase]);
 
   const style = { width: size, height: size, fontSize: Math.max(11, size * 0.38), borderRadius: square ? 14 : '50%' };
   if (src) return <img className={`avatar-img ${className}`} src={src} alt={user?.name || ''} style={{ ...style, objectFit: 'cover' }} />;

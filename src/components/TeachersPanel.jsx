@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { errorMessage } from '../api/axios.js';
+import Avatar from './Avatar.jsx';
 
 // Teachers as boxes, grouped by department, with a search bar. Click a box to see all of that teacher's classes.
 export default function TeachersPanel({ department }) {
@@ -56,7 +57,7 @@ export default function TeachersPanel({ department }) {
             {list.map((t) => (
               <div key={t._id} className="person-card" role="link" tabIndex={0}
                 onClick={() => navigate(`/teachers/${t._id}`)} onKeyDown={(e) => e.key === 'Enter' && navigate(`/teachers/${t._id}`)}>
-                <div className="avatar">{(t.name || '?')[0]}</div>
+                <Avatar user={t} size={46} />
                 <div className="info">
                   <b>{t.name}</b>
                   <small>{t.email}</small>

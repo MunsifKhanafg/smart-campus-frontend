@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { errorMessage } from '../api/axios.js';
 import { fmtDate } from './ui.jsx';
+import Avatar from './Avatar.jsx';
 
 // Students of a department, or of one semester. Read-only list with a link to each full record.
 // For one semester the table also shows the total, contact details and enrollment details of every student.
@@ -19,6 +20,7 @@ export default function StudentsPanel({ department, semester }) {
       api.get(`/semesters/${semester}/roster`)
         .then((r) => done(r.data.data.students.map((s) => ({
           key: s.profileId, userId: s.userId, roll: s.rollNumber, name: s.name, email: s.email, phone: s.phone, section: s.section,
+          photo: { _id: s.userId, name: s.name, hasPhoto: s.hasPhoto, photoUpdatedAt: s.photoUpdatedAt },
           semesterName: null, status: s.status, admissionYear: s.admissionYear, guardian: [s.guardianName, s.guardianPhone].filter(Boolean).join(' · '),
           courses: s.coursesEnrolled, since: s.enrolledSince,
         })), { activeCourses: r.data.data.activeCourses }))
@@ -30,6 +32,7 @@ export default function StudentsPanel({ department, semester }) {
     api.get('/students', { params })
       .then((r) => done(r.data.data.map((p) => ({
         key: p._id, userId: p.user?._id, roll: p.rollNumber, name: p.user?.name, email: p.user?.email, phone: p.user?.phone || '',
+        photo: p.user,
         section: p.section, semesterName: p.semester?.name || null, status: p.status, admissionYear: p.admissionYear || null,
         guardian: [p.guardianName, p.guardianPhone].filter(Boolean).join(' · '), courses: null, since: null,
       }))))
@@ -66,7 +69,7 @@ export default function StudentsPanel({ department, semester }) {
             {shown.map((p) => (
               <tr key={p.key}>
                 <td>{p.roll}</td>
-                <td>{p.name}</td>
+                <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: '.5rem' }}><Avatar user={p.photo} size={34} />{p.name}</span></td>
                 <td className="small">{p.email}{p.phone && <div>{p.phone}</div>}{p.guardian && <div className="muted">Guardian: {p.guardian}</div>}</td>
                 {!semester && <td>{p.semesterName || <em className="muted">Not placed</em>}</td>}
                 <td>{p.section}</td>

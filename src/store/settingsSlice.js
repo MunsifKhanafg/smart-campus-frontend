@@ -3,7 +3,7 @@ import api from '../api/axios.js';
 
 // Public branding (name, logo...) is loaded once and shown everywhere: menu, login, landing page, browser tab title, tab icon.
 // The last branding is also kept in the browser, so after a reload the CURRENT university name is shown at once
-// instead of a flash of the default name while the settings are being fetched.
+// instead of a flash of the default name while the settings are being fetched. (The logo picture itself is kept by logoCache.js.)
 export const BRANDING_CACHE_KEY = 'sc_branding';
 
 const readCache = () => {
@@ -16,7 +16,7 @@ const writeCache = (s) => {
   } catch { /* private browsing: nothing is remembered, the name is simply fetched again */ }
 };
 
-// Called after the head saves settings so the header updates instantly.
+// Called on start, after the head saves settings, and when the tab becomes active again, so a changed name or logo shows everywhere.
 export const fetchPublicSettings = createAsyncThunk('settings/public', async () => {
   const { data } = await api.get('/settings/public');
   return data.data;
@@ -37,6 +37,7 @@ const slice = createSlice({
     admissionPortal: null, // open / dates / external link, from the public settings
     ...readCache(),
     loaded: false,
+    offline: false, // true while the last attempt to reach the server failed: the name and logo then come from the browser's saved copy
   },
   reducers: {
     setBranding: (state, a) => {
@@ -47,11 +48,11 @@ const slice = createSlice({
   },
   extraReducers: (b) => {
     b.addCase(fetchPublicSettings.fulfilled, (s, a) => {
-      const next = { ...s, ...a.payload, loaded: true };
+      const next = { ...s, ...a.payload, loaded: true, offline: false };
       writeCache(next);
       return next;
     });
-    b.addCase(fetchPublicSettings.rejected, (s) => { s.loaded = true; });
+    b.addCase(fetchPublicSettings.rejected, (s) => { s.loaded = true; s.offline = true; });
   },
 });
 

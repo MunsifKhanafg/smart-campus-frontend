@@ -7,7 +7,7 @@ import Avatar, { forgetPhoto } from './Avatar.jsx';
 // small, and a phone photo of several megabytes works without any editing.
 const SIDE = 320;
 
-const shrink = (file) =>
+export const shrink = (file) =>
   new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -31,10 +31,12 @@ const shrink = (file) =>
   });
 
 // user: { _id, name, hasPhoto, photoUpdatedAt }.  onChanged(patch) receives { hasPhoto, photoUpdatedAt } so the page can update itself.
-export default function PhotoUpload({ user, size = 96, onChanged, onMessage }) {
+// base: where the picture is saved. People use '/profile' (default); Class IV staff use '/support-staff'.
+export default function PhotoUpload({ user, size = 96, onChanged, onMessage, base = '/profile' }) {
   const fileRef = useRef(null);
   const cameraRef = useRef(null);
   const [busy, setBusy] = useState(false);
+  const photoBase = base === '/profile' ? '/photos' : `${base}/photo`;
 
   const tell = (type, text) => onMessage?.(type, text);
 
@@ -45,7 +47,7 @@ export default function PhotoUpload({ user, size = 96, onChanged, onMessage }) {
       const blob = await shrink(file);
       const form = new FormData();
       form.append('photo', blob, 'photo.jpg');
-      const { data } = await api.put(`/profile/${user._id}/photo`, form);
+      const { data } = await api.put(`${base}/${user._id}/photo`, form);
       forgetPhoto(user._id);
       onChanged?.(data.data);
       tell('success', 'Photo saved');
@@ -59,7 +61,7 @@ export default function PhotoUpload({ user, size = 96, onChanged, onMessage }) {
   const remove = async () => {
     setBusy(true);
     try {
-      const { data } = await api.delete(`/profile/${user._id}/photo`);
+      const { data } = await api.delete(`${base}/${user._id}/photo`);
       forgetPhoto(user._id);
       onChanged?.(data.data);
       tell('success', 'Photo removed');
@@ -68,7 +70,7 @@ export default function PhotoUpload({ user, size = 96, onChanged, onMessage }) {
 
   return (
     <div className="photo-upload">
-      <Avatar user={user} size={size} />
+      <Avatar user={user} size={size} photoBase={photoBase} />
       <div className="photo-actions">
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => send(e.target.files?.[0])} />
         {/* capture="user" opens the front camera on a phone; on a computer it is a normal file chooser */}

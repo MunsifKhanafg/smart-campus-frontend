@@ -21,7 +21,7 @@ const ROLE_LABEL = {
 const MENU = {
   university_head: [
     { items: [['/dashboard', 'Dashboard']] },
-    { title: 'University', items: [['/departments', 'Departments'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/applications', 'New Applications'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance']] },
+    { title: 'University', items: [['/departments', 'Departments'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/applications', 'New Applications'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance'], ['/student-leave', 'Student Leave'], ['/support-staff', 'Class IV Staff']] },
     { title: 'Finance', items: [['/finance-overview', 'Finance Overview'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists']] },
     { title: 'Academics', items: [['/curriculum', 'BS Curriculum'], ['/insights', 'Reports & Insights']] },
     { title: 'Communication', items: [['/assistant', 'AI Assistant'], ['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar'], ['/complaints', 'Complaints']] },
@@ -29,7 +29,7 @@ const MENU = {
   ],
   hod: [
     { items: [['/dashboard', 'Dashboard']] },
-    { title: 'My department', items: [['/departments', 'My Department'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance']] },
+    { title: 'My department', items: [['/departments', 'My Department'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance'], ['/student-leave', 'Student Leave'], ['/support-staff', 'Class IV Staff']] },
     { title: 'Academics', items: [['/semesters', 'Semesters'], ['/curriculum', 'BS Curriculum'], ['/assign-teachers', 'Assign Teachers'], ['/courses', 'Courses'], ['/timetable', 'Timetable'], ['/examinations', 'Examinations']] },
     { title: 'Students & fees', items: [['/applications', 'New Applications'], ['/admissions', 'Exam Admissions'], ['/documents', 'Student Documents'], ['/fee-notices', 'Fee Notices'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists']] },
     { title: 'Support', items: [['/assistant', 'AI Assistant'], ['/complaints', 'Complaints'], ['/insights', 'Reports & Insights'], ['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar']] },
@@ -38,6 +38,7 @@ const MENU = {
     { items: [['/dashboard', 'Dashboard']] },
     { title: 'Money', items: [['/finance-overview', 'Finance Overview'], ['/fee-notices', 'Fee Notices'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists'], ['/finance', 'Finance Desk']] },
     { title: 'Students', items: [['/assistant', 'AI Assistant'], ['/admissions', 'Exam Admissions'], ['/complaints', 'Fee Complaints']] },
+    { title: 'My work', items: [['/staff-attendance', 'My Check-in & Leave']] },
     { title: 'Updates', items: [['/announcements', 'Announcements']] },
   ],
   teacher: [
@@ -47,7 +48,7 @@ const MENU = {
   ],
   student: [
     { items: [['/dashboard', 'Dashboard']] },
-    { title: 'Study', items: [['/my-courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/calendar', 'Academic Calendar']] },
+    { title: 'Study', items: [['/my-courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/student-leave', 'My Leave'], ['/calendar', 'Academic Calendar']] },
     { title: 'Exams & results', items: [['/exams', 'Exams & Admission'], ['/results', 'My Results'], ['/my-performance', 'Academic Support']] },
     { title: 'Fees & records', items: [['/fees', 'Fees & Payments'], ['/documents', 'My Documents'], ['/my-record', 'My Academic Record']] },
     { title: 'Help', items: [['/complaints', 'Complaints'], ['/announcements', 'Announcements']] },
@@ -60,6 +61,7 @@ const ICON = {
   '/finance': '💰', '/finance-overview': '📈', '/promotion-fees': '🪜', '/fee-reminders': '⏰', '/admissions': '🪪', '/documents': '📄', '/complaints': '📣', '/insights': '📊', '/calendar': '📅',
   '/announcements': '📢', '/settings': '⚙️', '/my-courses': '📘', '/exams': '📝', '/results': '🏆', '/fees': '💳',
   '/my-performance': '📈', '/assistant': '🤖', '/applications': '📥', '/my-record': '🗂️', '/curriculum': '🧬', '/assign-teachers': '🧑‍🏫',
+  '/student-leave': '🏖️', '/support-staff': '🧹',
 };
 
 export default function Layout() {
@@ -67,15 +69,16 @@ export default function Layout() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [profile, setProfile] = useState(false);
   const [unread, setUnread] = useState(0);
   const location = useLocation();
   useResponsiveTables(); // tables become cards on phones, so nothing scrolls sideways
 
   // The phone menu closes after every page change, with Esc, and the page behind it does not scroll while it is open.
-  useEffect(() => { setOpen(false); }, [location.pathname]);
+  useEffect(() => { setOpen(false); setProfile(false); }, [location.pathname]);
   useEffect(() => {
     document.body.classList.toggle('drawer-open', open);
-    const onKey = (e) => e.key === 'Escape' && setOpen(false);
+    const onKey = (e) => { if (e.key === 'Escape') { setOpen(false); setProfile(false); } };
     document.addEventListener('keydown', onKey);
     return () => { document.body.classList.remove('drawer-open'); document.removeEventListener('keydown', onKey); };
   }, [open]);
@@ -140,7 +143,7 @@ export default function Layout() {
           <NavLink to="/notifications" className="bell" aria-label="Notifications" title="Notifications">
             🔔{unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}
           </NavLink>
-          <NavLink to="/account" className="top-avatar" aria-label="My photo and details" title="My photo and details"><Avatar user={user} size={36} /></NavLink>
+          <button type="button" className="top-avatar top-avatar-btn" aria-label="My profile" title="My profile" onClick={() => setProfile(true)}><Avatar user={user} size={36} /></button>
           <div className="who">
             <strong>{user.name}</strong>
             <span>{ROLE_LABEL[user.role]}{user.department ? ` · ${user.department.code}` : ''}</span>
@@ -150,6 +153,26 @@ export default function Layout() {
         </header>
         <main className="content"><Outlet /></main>
       </div>
+
+      {profile && (
+        <div className="modal-backdrop pm-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setProfile(false)}>
+          <div className="modal pm-modal" role="dialog" aria-modal="true" aria-label="My profile">
+            <button type="button" className="pm-close" aria-label="Close" onClick={() => setProfile(false)}>✕</button>
+            <div className="pm-cover" />
+            <div className="pm-avatar"><Avatar user={user} size={88} /></div>
+            <h3>{user.name}</h3>
+            <span className="pm-role">{ROLE_LABEL[user.role]}{user.department ? ` · ${user.department.name || user.department.code}` : ''}</span>
+            <dl className="pm-info">
+              {user.email && <><dt>Email</dt><dd>{user.email}</dd></>}
+              {user.phone && <><dt>Phone</dt><dd>{user.phone}</dd></>}
+            </dl>
+            <div className="pm-actions">
+              <button type="button" className="btn btn-primary" onClick={() => { setProfile(false); navigate('/account'); }}>Open my account</button>
+              <button type="button" className="btn btn-ghost pm-out" onClick={doLogout}>⎋ Log out</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

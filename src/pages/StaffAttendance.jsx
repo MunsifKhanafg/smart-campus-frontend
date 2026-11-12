@@ -58,7 +58,7 @@ export default function StaffAttendance() {
     <>
       <h1>Staff Attendance</h1>
       <p className="muted">
-        {isHead ? 'Teachers and HODs check in when the college starts. Late, absent and leave are recorded automatically.' : 'Check in when you reach the college. Late, absent and leave are recorded automatically.'}
+        {isHead ? 'Teachers, HODs and the finance officer check in when the college starts. Late, absent and leave are recorded automatically.' : 'Check in when you reach the college. Late, absent and leave are recorded automatically.'}
       </p>
       <Alert msg={msg} />
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
@@ -317,12 +317,12 @@ function Team({ ok, fail, isHead }) {
 
       <div className="card table-wrap">
         <table>
-          <thead><tr><th>Teacher</th>{isHead && <th>Department</th>}<th>Status</th><th>In</th><th>Out</th><th>Proof</th><th>Note</th><th /></tr></thead>
+          <thead><tr><th>Staff</th>{isHead && <th>Department</th>}<th>Status</th><th>In</th><th>Out</th><th>Proof</th><th>Note</th><th /></tr></thead>
           <tbody>
             {data?.rows.map((r) => (
               <tr key={r.user._id}>
                 <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: '.5rem' }}><Avatar user={r.user} size={30} />{r.user.name}</span></td>
-                {isHead && <td>{r.user.department?.code || 'All'}</td>}
+                {isHead && <td>{r.user.department?.code || (r.user.role === 'finance_officer' ? 'Finance office' : 'All')}</td>}
                 <td><Badge value={r.status} />{r.minutesLate ? <div className="muted small">{r.minutesLate} min late</div> : null}</td>
                 <td>{timeOf(r.checkInAt)}</td><td>{timeOf(r.checkOutAt)}</td>
                 <td>

@@ -20,21 +20,40 @@ const currentStartYear = () => {
   return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
 };
 
-// A normal Pakistani university year. Every date can be changed before the events are created.
-const defaultPlan = (Y) => {
+// Two normal calendars. A HOT area has a long summer vacation, a COLD area has a long winter vacation.
+// Every date can be changed before the events are created.
+const CLIMATES = {
+  hot: { icon: '☀️', title: 'Hot area', text: 'Long summer vacation (about 12 weeks) and a short winter break (2 weeks). Semesters: September to December, January to June.' },
+  cold: { icon: '❄️', title: 'Cold area', text: 'Long winter vacation (about 10 weeks) and a short summer break (6 weeks). Semesters: September to mid-December, March to June.' },
+};
+
+const defaultPlan = (Y, climate = 'hot') => {
   const N = Y + 1;
-  return [
+  const hot = [
     { title: 'Fall semester starts', type: 'semester_start', startDate: ds(Y, 9, 1), endDate: ds(Y, 9, 1) },
-    { title: 'Fall mid-term exams', type: 'midterm_exam', startDate: ds(Y, 10, 27), endDate: ds(Y, 11, 7) },
-    { title: 'Fall final-term exams', type: 'final_exam', startDate: ds(Y, 12, 22), endDate: ds(N, 1, 9) },
-    { title: 'Fall semester ends', type: 'semester_end', startDate: ds(N, 1, 9), endDate: ds(N, 1, 9) },
-    { title: 'Winter vacation', type: 'winter_vacation', startDate: ds(N, 1, 12), endDate: ds(N, 1, 25) },
-    { title: 'Spring semester starts', type: 'semester_start', startDate: ds(N, 2, 2), endDate: ds(N, 2, 2) },
-    { title: 'Spring mid-term exams', type: 'midterm_exam', startDate: ds(N, 3, 30), endDate: ds(N, 4, 10) },
-    { title: 'Spring final-term exams', type: 'final_exam', startDate: ds(N, 6, 1), endDate: ds(N, 6, 19) },
-    { title: 'Spring semester ends', type: 'semester_end', startDate: ds(N, 6, 19), endDate: ds(N, 6, 19) },
-    { title: 'Summer vacation', type: 'summer_vacation', startDate: ds(N, 6, 22), endDate: ds(N, 8, 28) },
-  ].map((r) => ({ ...r, on: true }));
+    { title: 'Fall mid-term exams', type: 'midterm_exam', startDate: ds(Y, 10, 26), endDate: ds(Y, 11, 6) },
+    { title: 'Fall final-term exams', type: 'final_exam', startDate: ds(Y, 12, 14), endDate: ds(Y, 12, 31) },
+    { title: 'Fall semester ends', type: 'semester_end', startDate: ds(Y, 12, 31), endDate: ds(Y, 12, 31) },
+    { title: 'Winter vacation', type: 'winter_vacation', startDate: ds(N, 1, 4), endDate: ds(N, 1, 17) },
+    { title: 'Spring semester starts', type: 'semester_start', startDate: ds(N, 1, 19), endDate: ds(N, 1, 19) },
+    { title: 'Spring mid-term exams', type: 'midterm_exam', startDate: ds(N, 3, 16), endDate: ds(N, 3, 27) },
+    { title: 'Spring final-term exams', type: 'final_exam', startDate: ds(N, 5, 18), endDate: ds(N, 6, 5) },
+    { title: 'Spring semester ends', type: 'semester_end', startDate: ds(N, 6, 5), endDate: ds(N, 6, 5) },
+    { title: 'Summer vacation', type: 'summer_vacation', startDate: ds(N, 6, 8), endDate: ds(N, 8, 31) },
+  ];
+  const cold = [
+    { title: 'Fall semester starts', type: 'semester_start', startDate: ds(Y, 9, 1), endDate: ds(Y, 9, 1) },
+    { title: 'Fall mid-term exams', type: 'midterm_exam', startDate: ds(Y, 10, 12), endDate: ds(Y, 10, 23) },
+    { title: 'Fall final-term exams', type: 'final_exam', startDate: ds(Y, 11, 30), endDate: ds(Y, 12, 11) },
+    { title: 'Fall semester ends', type: 'semester_end', startDate: ds(Y, 12, 11), endDate: ds(Y, 12, 11) },
+    { title: 'Winter vacation', type: 'winter_vacation', startDate: ds(Y, 12, 14), endDate: ds(N, 2, 26) },
+    { title: 'Spring semester starts', type: 'semester_start', startDate: ds(N, 3, 1), endDate: ds(N, 3, 1) },
+    { title: 'Spring mid-term exams', type: 'midterm_exam', startDate: ds(N, 4, 26), endDate: ds(N, 5, 7) },
+    { title: 'Spring final-term exams', type: 'final_exam', startDate: ds(N, 6, 14), endDate: ds(N, 6, 25) },
+    { title: 'Spring semester ends', type: 'semester_end', startDate: ds(N, 6, 25), endDate: ds(N, 6, 25) },
+    { title: 'Summer vacation', type: 'summer_vacation', startDate: ds(N, 6, 28), endDate: ds(N, 8, 8) },
+  ];
+  return (climate === 'cold' ? cold : hot).map((r) => ({ ...r, on: true }));
 };
 
 // One small month. Days that belong to an event are coloured by the type of the event.
@@ -159,24 +178,42 @@ export default function Calendar() {
         </div>
         {canEdit && (
           <div className="actions">
-            <button className="btn btn-primary" style={{ marginTop: 0 }} onClick={() => setPlan({ year, department: '', rows: defaultPlan(year) })}>📅 Plan the academic year</button>
+            <button className="btn btn-primary" style={{ marginTop: 0 }} onClick={() => setPlan({ year, department: '', climate: null, rows: [] })}>📅 Plan the academic year</button>
             <button className="btn" onClick={() => setForm(EMPTY)}>+ Add one event</button>
           </div>
         )}
       </div>
       <Alert msg={msg} />
 
-      {plan && (
+      {plan && !plan.climate && (
         <div className="card">
-          <h3 style={{ marginTop: 0 }}>Plan the academic year</h3>
+          <h3 style={{ marginTop: 0 }}>Which calendar do you want?</h3>
+          <p className="muted small">Choose the kind of year that fits your area. The two calendars place the long vacation differently. You can change every date afterwards.</p>
+          <div className="climate-grid">
+            {Object.entries(CLIMATES).map(([key, c]) => (
+              <button key={key} type="button" className="climate-card" onClick={() => setPlan({ ...plan, climate: key, rows: defaultPlan(plan.year, key) })}>
+                <span className="ico">{c.icon}</span>
+                <b>{c.title}</b>
+                <span>{c.text}</span>
+              </button>
+            ))}
+          </div>
+          <div className="actions"><button className="btn btn-ghost" onClick={() => setPlan(null)}>Cancel</button></div>
+        </div>
+      )}
+
+      {plan && plan.climate && (
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Plan the academic year: {CLIMATES[plan.climate].icon} {CLIMATES[plan.climate].title}</h3>
           <p className="muted small">
             This adds the whole year in one step: both semesters, the mid-term and final-term exams, and the winter and summer vacations.
             The dates are a normal starting point. Change any date, untick what you do not need, then press Create.
+            {' '}<button type="button" className="linklike" onClick={() => setPlan({ ...plan, climate: null, rows: [] })}>Choose the other calendar</button>
           </p>
           <div className="form-grid">
             <div>
               <label>Academic year (September to August)</label>
-              <select value={plan.year} onChange={(e) => setPlan({ ...plan, year: Number(e.target.value), rows: defaultPlan(Number(e.target.value)) })}>
+              <select value={plan.year} onChange={(e) => setPlan({ ...plan, year: Number(e.target.value), rows: defaultPlan(Number(e.target.value), plan.climate) })}>
                 {years.map((y) => <option key={y} value={y}>{y} – {y + 1}</option>)}
               </select>
             </div>

@@ -1,18 +1,22 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-// One modal for the whole app, used instead of the browser's window.confirm / alert popups.
+// One modal for the whole app, used instead of the browser's window.confirm / alert / prompt popups.
 //
 //   const confirm = useConfirm();
 //   if (!(await confirm({ title: 'Delete course?', message: '...', tone: 'danger', confirmText: 'Delete' }))) return;
+//
+//   // Ask for a line of text (replaces window.prompt). Resolves the text, or null when cancelled.
+//   const name = await confirm.prompt({ title: 'Rename chat', label: 'New name', value: current, confirmText: 'Save' });
 //
 // Options:
 //   title        heading
 //   message      text under the heading (new lines are kept)
 //   details      optional list of short lines shown as bullets (for example what will be deleted)
-//   tone         'primary' (default) | 'danger' | 'info'
+//   tone         'primary' (default) | 'danger' | 'info' | 'success' | 'error'
 //   confirmText  label of the main button
 //   cancelText   label of the cancel button; pass null to show only one button (an "alert")
 //   requireText  the person must type this word before the main button works (extra safety for big deletes)
+//   label / value / placeholder / multiline / required   (prompt only) the text box
 // The promise resolves true when confirmed and false when cancelled, closed with Esc, or clicked outside.
 
 const ConfirmContext = createContext(null);
@@ -21,22 +25,29 @@ export function ConfirmProvider({ children }) {
   const [dlg, setDlg] = useState(null);
   const resolver = useRef(null);
 
-  const confirm = useCallback(
+  const ask = useCallback(
     (options = {}) =>
       new Promise((resolve) => {
-        resolver.current?.(false); // a new question replaces an unanswered one
+        resolver.current?.(options.prompt ? null : false); // a new question replaces an unanswered one
         resolver.current = resolve;
         setDlg(options);
       }),
     []
   );
 
+  // confirm(...) -> boolean   ·   confirm.prompt(...) -> string | null
+  const confirm = useMemo(() => {
+    const fn = (options) => ask(options);
+    fn.prompt = (options) => ask({ cancelText: 'Cancel', confirmText: 'Save', tone: 'primary', ...options, prompt: true });
+    return fn;
+  }, [ask]);
+
   // Any leftover window.alert("...") in the app opens this window instead of the browser's plain popup.
   useEffect(() => {
     const native = window.alert;
-    window.alert = (text) => { confirm({ title: 'Notice', message: String(text ?? ''), tone: 'info', confirmText: 'OK', cancelText: null }); };
+    window.alert = (text) => { ask({ title: 'Notice', message: String(text ?? ''), tone: 'info', confirmText: 'OK', cancelText: null }); };
     return () => { window.alert = native; };
-  }, [confirm]);
+  }, [ask]);
 
   const close = useCallback((result) => {
     resolver.current?.(result);
@@ -69,17 +80,25 @@ function ModalView({ dlg, onClose }) {
     confirmText = 'Confirm',
     cancelText = 'Cancel',
     requireText = '',
+    prompt = false,
+    label = '',
+    value = '',
+    placeholder = '',
+    multiline = false,
+    required = true,
   } = dlg;
   const [typed, setTyped] = useState('');
+  const [text, setText] = useState(value);
   const cancelRef = useRef(null);
   const confirmRef = useRef(null);
   const inputRef = useRef(null);
 
-  const unlocked = !requireText || typed.trim().toLowerCase() === requireText.toLowerCase();
+  const dismiss = useCallback(() => onClose(prompt ? null : false), [onClose, prompt]);
+  const unlocked = (!requireText || typed.trim().toLowerCase() === requireText.toLowerCase()) && (!prompt || !required || text.trim());
 
   // Esc closes. The page behind the modal does not scroll while it is open.
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose(false);
+    const onKey = (e) => e.key === 'Escape' && dismiss();
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -87,23 +106,24 @@ function ModalView({ dlg, onClose }) {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose]);
+  }, [dismiss]);
 
   // Focus the safest control: the typing box, or Cancel for dangerous actions, or the main button.
   useEffect(() => {
-    if (requireText) inputRef.current?.focus();
+    if (requireText || prompt) inputRef.current?.focus();
     else if (tone === 'danger' && cancelText !== null) cancelRef.current?.focus();
     else confirmRef.current?.focus();
-  }, [requireText, tone, cancelText]);
+  }, [requireText, prompt, tone, cancelText]);
 
   const submit = (e) => {
     e.preventDefault();
-    if (unlocked) onClose(true);
+    if (!unlocked) return;
+    onClose(prompt ? text.trim() : true);
   };
 
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose(false)}>
-      <form className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" onSubmit={submit}>
+    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && dismiss()}>
+      <form className={`modal modal-${tone}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" onSubmit={submit}>
         <div className={`modal-icon ${tone}`}>{ICON[tone] || ICON.primary}</div>
         <h3 id="modal-title">{title}</h3>
         {message && <p className="modal-message">{message}</p>}
@@ -111,6 +131,14 @@ function ModalView({ dlg, onClose }) {
           <ul className="modal-details">
             {details.map((d) => <li key={d}>{d}</li>)}
           </ul>
+        )}
+        {prompt && (
+          <div className="modal-type">
+            {label && <label>{label}</label>}
+            {multiline
+              ? <textarea ref={inputRef} rows={3} value={text} placeholder={placeholder} onChange={(e) => setText(e.target.value)} />
+              : <input ref={inputRef} value={text} placeholder={placeholder} onChange={(e) => setText(e.target.value)} autoComplete="off" />}
+          </div>
         )}
         {requireText && (
           <div className="modal-type">
@@ -120,9 +148,9 @@ function ModalView({ dlg, onClose }) {
         )}
         <div className="modal-actions">
           {cancelText !== null && (
-            <button type="button" ref={cancelRef} className="btn btn-ghost" onClick={() => onClose(false)}>{cancelText}</button>
+            <button type="button" ref={cancelRef} className="btn btn-ghost" onClick={dismiss}>{cancelText}</button>
           )}
-          <button ref={confirmRef} className={`btn ${tone === 'danger' ? 'btn-danger' : 'btn-primary'}`} disabled={!unlocked}>
+          <button ref={confirmRef} className={`btn ${tone === 'danger' || tone === 'error' ? 'btn-danger' : 'btn-primary'}`} disabled={!unlocked}>
             {confirmText}
           </button>
         </div>

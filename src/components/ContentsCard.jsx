@@ -22,12 +22,14 @@ export default function ContentsCard({ outline, courseId, canEdit, topicCount, o
   }
   const items = splitContents(outline);
 
-  const create = async () => {
-    const warn = topicCount > 0 ? `\n\nThis course already has ${topicCount} topic(s). The new ones are added after them and the whole plan is arranged again.` : '';
+  const create = async (replace = false) => {
+    const warn = replace
+      ? `\n\nThe topics that are still ahead and have no uploaded files will be DELETED and replaced by the ${items.length} small topics. Topics already taught and topics with files stay.`
+      : topicCount > 0 ? `\n\nThis course already has ${topicCount} topic(s). The new ones are added after them and the whole plan is arranged again.` : '';
     if (!window.confirm(`Create ${items.length} numbered topics from the course contents and plan them over your teaching days (2 to 3 topics per class)?${warn}`)) return;
     setBusy(true);
     try {
-      const r = await api.post(`/teaching-calendar/course/${courseId}/schedule`, { titles: items });
+      const r = await api.post(`/teaching-calendar/course/${courseId}/schedule`, { titles: items, ...(replace ? { replace: true } : {}) });
       ok(r.data.message || `${items.length} topics planned`);
     } catch (err) {
       fail(err);
@@ -43,9 +45,14 @@ export default function ContentsCard({ outline, courseId, canEdit, topicCount, o
       <NumberedContents text={outline} />
       {canEdit && items.length > 0 && (
         <div className="inline-form">
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={create}>
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={() => create(false)}>
             {busy ? 'Planning…' : `Plan ${items.length} topics over the semester`}
           </button>
+          {topicCount > 0 && (
+            <button type="button" className="btn" disabled={busy} onClick={() => create(true)}>
+              Replace my current topics with these {items.length}
+            </button>
+          )}
         </div>
       )}
     </div>

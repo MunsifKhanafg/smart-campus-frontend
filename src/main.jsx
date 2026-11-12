@@ -25,6 +25,7 @@ import './theme.css';
 import './logo.css';
 import './modern.css';
 import './profile.css';
+import './ui2.css'; // modern modals, profile sheet, chat on phones, leave and Class IV staff pages
 import './mobile.css'; // keep this LAST: the phone layout must win over every other stylesheet
 
 initTheme();

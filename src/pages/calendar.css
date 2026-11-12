@@ -30,6 +30,15 @@
 .cal-list li { display: flex; gap: .35rem; align-items: baseline; flex-wrap: wrap; overflow-wrap: anywhere; }
 
 .plan-rows { display: grid; gap: .45rem; margin: .8rem 0; }
+
+/* The first question of the academic year planner: hot or cold area */
+.climate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.climate-card { display: flex; flex-direction: column; gap: .35rem; align-items: flex-start; text-align: left; padding: 1.1rem 1.2rem; border-radius: 16px; border: 2px solid var(--border, #e2e8f0); background: #fff; cursor: pointer; font: inherit; color: inherit; transition: transform .12s, border-color .12s, box-shadow .12s; }
+.climate-card:hover { transform: translateY(-2px); border-color: var(--primary-light, #6366f1); box-shadow: 0 10px 26px rgba(79, 70, 229, .15); }
+.climate-card .ico { font-size: 2.2rem; }
+.climate-card b { font-size: 1.1rem; }
+.climate-card span:last-child { color: var(--muted, #64748b); font-size: .88rem; }
+.linklike { border: 0; background: none; padding: 0; color: var(--primary, #4f46e5); text-decoration: underline; cursor: pointer; font: inherit; }
 .plan-row { display: grid; grid-template-columns: auto auto minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr); gap: .5rem; align-items: center; }
 .plan-row.off { opacity: .45; }
 .plan-row input { padding: .4rem .5rem; min-width: 0; }

@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import api, { errorMessage } from '../api/axios.js';
 import Markdown from '../components/Markdown.jsx';
+import Avatar from '../components/Avatar.jsx';
+import { useConfirm } from '../components/ConfirmModal.jsx';
 import './assistant.css';
 
 // Example questions shown on an empty chat, per tool.
@@ -22,11 +24,13 @@ const STARTERS = {
 
 export default function Assistant() {
   const { user } = useSelector((s) => s.auth);
+  const confirm = useConfirm();
   const canSeeCourses = user.role !== 'finance_officer'; // the finance office cannot list courses, it only searches records
   const [modes, setModes] = useState([]);
   const [configured, setConfigured] = useState(true);
   const [mode, setMode] = useState('records');
   const [chats, setChats] = useState([]);
+  const [search, setSearch] = useState('');
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -58,7 +62,19 @@ export default function Assistant() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [messages, busy]);
 
+  // The history panel is a sheet on a phone: the page behind it does not scroll and Esc closes it.
+  useEffect(() => {
+    if (!drawer) return undefined;
+    const onKey = (e) => e.key === 'Escape' && setDrawer(false);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [drawer]);
+
   const current = modes.find((m) => m.id === mode);
+  const shownChats = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? chats.filter((c) => (c.title || 'Chat').toLowerCase().includes(q)) : chats;
+  }, [chats, search]);
 
   const newChat = () => { setActiveId(null); setMessages([]); setError(''); setInput(''); setDrawer(false); };
 
@@ -74,17 +90,18 @@ export default function Assistant() {
     } catch (e) { setError(errorMessage(e)); }
   };
 
-  const removeChat = async (id, e) => {
+  const removeChat = async (c, e) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this conversation?')) return;
-    try { await api.delete(`/ai/conversations/${id}`); if (id === activeId) newChat(); loadChats(); } catch (err) { setError(errorMessage(err)); }
+    const yes = await confirm({ tone: 'danger', title: 'Delete this conversation?', message: `“${c.title || 'Chat'}” will be removed for good.`, confirmText: 'Delete', cancelText: 'Keep it' });
+    if (!yes) return;
+    try { await api.delete(`/ai/conversations/${c._id}`); if (c._id === activeId) newChat(); loadChats(); } catch (err) { setError(errorMessage(err)); }
   };
 
   const renameChat = async (c, e) => {
     e.stopPropagation();
-    const title = window.prompt('New name for this conversation', c.title || '');
-    if (!title || !title.trim()) return;
-    try { await api.patch(`/ai/conversations/${c._id}`, { title: title.trim() }); loadChats(); } catch (err) { setError(errorMessage(err)); }
+    const title = await confirm.prompt({ title: 'Rename conversation', label: 'New name', value: c.title || '', placeholder: 'Conversation name', confirmText: 'Save' });
+    if (!title) return;
+    try { await api.patch(`/ai/conversations/${c._id}`, { title }); loadChats(); } catch (err) { setError(errorMessage(err)); }
   };
 
   const send = async (text) => {
@@ -128,29 +145,35 @@ export default function Assistant() {
   return (
     <div className="as">
       {drawer && <div className="as-scrim" onClick={() => setDrawer(false)} />}
-      <aside className={`as-side ${drawer ? 'open' : ''}`}>
+      <aside className={`as-side ${drawer ? 'open' : ''}`} aria-label="Chat history">
+        <div className="as-side-head">
+          <b>Chat history</b>
+          <button type="button" className="as-x" aria-label="Close history" onClick={() => setDrawer(false)}>✕</button>
+        </div>
         <button className="btn btn-primary as-new" onClick={newChat}>＋ New chat</button>
+        {chats.length > 5 && <input className="as-search" type="search" placeholder="Search chats…" value={search} onChange={(e) => setSearch(e.target.value)} />}
         <div className="as-list">
-          {chats.map((c) => (
+          {shownChats.map((c) => (
             <div key={c._id} className={`as-item ${c._id === activeId ? 'on' : ''}`} onClick={() => openChat(c._id)}>
               <span className="ico">{iconOf(c)}</span>
               <span className="t">{c.title || 'Chat'}</span>
-              <button type="button" title="Rename" onClick={(e) => renameChat(c, e)}>✎</button>
-              <button type="button" title="Delete" onClick={(e) => removeChat(c._id, e)}>✕</button>
+              <button type="button" title="Rename" aria-label="Rename" onClick={(e) => renameChat(c, e)}>✎</button>
+              <button type="button" title="Delete" aria-label="Delete" onClick={(e) => removeChat(c, e)}>✕</button>
             </div>
           ))}
           {!chats.length && <p className="muted small" style={{ padding: '.5rem' }}>Your conversations will appear here.</p>}
+          {!!chats.length && !shownChats.length && <p className="muted small" style={{ padding: '.5rem' }}>No chat matches “{search}”.</p>}
         </div>
       </aside>
 
       <section className="as-main">
         <header className="as-head">
-          <button type="button" className="btn btn-ghost as-hist" onClick={() => setDrawer(true)}>☰ History</button>
+          <button type="button" className="btn btn-ghost as-hist" onClick={() => setDrawer(true)} aria-label="Open chat history">☰<span> History</span></button>
           <div className="grow">
             <h2>AI Assistant</h2>
-            <span className="muted small">Type a roll number or a student's name. Add "attendance", "fees" or "result" to see only that.</span>
+            <span className="muted small as-sub">Type a roll number or a student's name. Add "attendance", "fees" or "result" to see only that.</span>
           </div>
-          <button type="button" className="btn btn-ghost" onClick={newChat}>New chat</button>
+          <button type="button" className="btn btn-ghost as-newtop" onClick={newChat}>New chat</button>
         </header>
 
         {/* One option only (the records search), so there is no menu of tools to choose from. */}
@@ -190,7 +213,7 @@ export default function Assistant() {
           )}
           {messages.map((m, i) => (
             <div key={i} className={`as-msg ${m.role}`}>
-              <div className="as-av">{m.role === 'user' ? (user.name || '?')[0] : '🤖'}</div>
+              <div className="as-av">{m.role === 'user' ? <Avatar user={user} size={32} square /> : '🤖'}</div>
               <div className="as-bubble">
                 {m.role === 'assistant' ? <Markdown text={m.content} /> : <p className="as-user-text">{m.content}</p>}
                 {m.role === 'assistant' && m.cards?.length > 0 && (
@@ -220,7 +243,7 @@ export default function Assistant() {
 
         <form className="as-input" onSubmit={(e) => { e.preventDefault(); send(); }}>
           <textarea rows={1} value={input} onChange={grow} onKeyDown={onKey} placeholder={current?.placeholder || 'Message the assistant...'} maxLength={4000} />
-          <button className="btn btn-primary" disabled={busy || !input.trim()}>{busy ? '...' : 'Send'}</button>
+          <button className="btn btn-primary as-send" disabled={busy || !input.trim()} aria-label="Send">{busy ? '…' : <><span className="as-send-txt">Send</span><span className="as-send-ico">➤</span></>}</button>
         </form>
         <p className="as-note">AI can make mistakes, so check important facts. It never changes marks, grades, attendance, fees or admission.</p>
       </section>

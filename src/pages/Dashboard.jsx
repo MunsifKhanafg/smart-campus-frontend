@@ -21,18 +21,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!isManager) return;
-    Promise.all([api.get('/departments'), api.get('/users'), api.get('/students'), api.get('/semesters')])
+    // Every request is read on its own, so one slow or failing list can never hide the departments.
+    Promise.allSettled([api.get('/departments'), api.get('/users'), api.get('/students'), api.get('/semesters')])
       .then(([d, u, st, sem]) => {
-        const users = u.data.data;
-        setDepts(d.data.data);
+        const list = (r) => (r.status === 'fulfilled' ? r.value.data.data : []);
+        const departments = list(d);
+        const users = list(u);
+        setDepts(departments);
         setStats({
-          departments: d.data.data.length,
+          departments: departments.length,
           teachers: users.filter((x) => x.role === 'teacher' || x.role === 'hod').length,
-          students: st.data.data.length,
-          semesters: sem.data.data.length,
+          students: list(st).length,
+          semesters: list(sem).length,
         });
-      })
-      .catch(() => {});
+      });
   }, [isManager]);
 
   const myDeptId = user.department?._id || user.department;
@@ -64,9 +66,12 @@ export default function Dashboard() {
         <>
           <h3>Departments</h3>
           <div className="dept-grid">
-            {depts.filter((d) => d.status === 'active').map((d) => (
+            {depts.map((d) => (
               <Link key={d._id} to={`/departments/${d._id}`} className="dept-card">
-                <span className="code">{d.code}</span>
+                <div className="row-between" style={{ gap: '.5rem' }}>
+                  <span className="code">{d.code}</span>
+                  {d.status !== 'active' && <span className="badge archived">{d.status}</span>}
+                </div>
                 <h3>{d.name}</h3>
                 <div className="meta">HOD: {d.hod ? <b>{d.hod.name}</b> : <em>Not assigned</em>}</div>
               </Link>
