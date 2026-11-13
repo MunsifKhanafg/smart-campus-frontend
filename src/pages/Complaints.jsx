@@ -153,7 +153,7 @@ export default function Complaints() {
           <div className="card" key={c._id}>
             <div className="row-between">
               <h3 style={{ margin: 0 }}>{c.subject}</h3>
-              <Badge value={c.status} text={label(c.status)} />
+              <span>{c.source === 'library' && <span className="badge pending" title="Filed automatically by the library. It closes by itself when the book is returned.">Filed by the library</span>} <Badge value={c.status} text={label(c.status)} /></span>
             </div>
             <div className="muted small">
               {label(c.category)} · to {label(c.recipient)} · {fmtDateTime(c.createdAt)}

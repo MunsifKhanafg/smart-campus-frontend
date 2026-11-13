@@ -60,6 +60,8 @@ import Applications from './pages/Applications.jsx';
 import Assistant from './pages/Assistant.jsx';
 import StudentLeave from './pages/StudentLeave.jsx';
 import SupportStaff from './pages/SupportStaff.jsx';
+import Library from './pages/Library.jsx';
+import MyLibrary from './pages/MyLibrary.jsx';
 
 // The University Head browses students by department boxes; an HOD uses the full management page.
 function StudentsEntry() {
@@ -78,6 +80,7 @@ function TimetableEntry() {
 const HEAD = 'university_head';
 const HOD = 'hod';
 const FIN = 'finance_officer';
+const LIB = 'library_controller';
 const TEA = 'teacher';
 const STU = 'student';
 
@@ -125,14 +128,20 @@ export default function App() {
           <Route path="/announcements" element={<Announcements />} />
           <Route path="/timetable" element={<TimetableEntry />} />
 
-          {/* AI assistant: only the principal, HODs and the finance office (it searches records). Not for students or teachers. */}
-          <Route element={<ProtectedRoute roles={[HEAD, HOD, FIN]} />}>
+          {/* AI assistant: the principal, HODs and the finance office (it searches records). Students and the library controller get the
+              library assistant (the server gives each role only its own option and a student only their own library data). Not for teachers. */}
+          <Route element={<ProtectedRoute roles={[HEAD, HOD, FIN, STU, LIB]} />}>
             <Route path="/assistant" element={<Assistant />} />
           </Route>
 
-          {/* The staff's own attendance (check-in, leave): teachers, HODs and the finance officer. The principal / HOD also see the staff of the day */}
-          <Route element={<ProtectedRoute roles={[HEAD, HOD, TEA, FIN]} />}>
+          {/* The staff's own attendance (check-in, leave): teachers, HODs, the finance officer and the library controller. The principal / HOD also see the staff of the day */}
+          <Route element={<ProtectedRoute roles={[HEAD, HOD, TEA, FIN, LIB]} />}>
             <Route path="/staff-attendance" element={<StaffAttendance />} />
+          </Route>
+
+          {/* Library: the library controller runs it, the principal monitors it (read-only, plus the rules). Students have their own page. */}
+          <Route element={<ProtectedRoute roles={[LIB, HEAD]} />}>
+            <Route path="/library" element={<Library />} />
           </Route>
 
           {/* Student leave: the student asks, the HOD decides, the principal sees everything */}
@@ -181,6 +190,7 @@ export default function App() {
             <Route path="/exams" element={<MyExams />} />
             <Route path="/results" element={<MyResults />} />
             <Route path="/fees" element={<MyFees />} />
+            <Route path="/my-library" element={<MyLibrary />} />
           </Route>
 
           {/* Fees, documents, admissions and complaints */}

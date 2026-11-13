@@ -12,6 +12,7 @@ const ROLE_LABEL = {
   university_head: 'University Head',
   hod: 'HOD',
   finance_officer: 'Finance Officer',
+  library_controller: 'Library Controller',
   teacher: 'Teacher',
   student: 'Student',
 };
@@ -23,6 +24,7 @@ const MENU = {
     { items: [['/dashboard', 'Dashboard']] },
     { title: 'University', items: [['/departments', 'Departments'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/applications', 'New Applications'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance'], ['/student-leave', 'Student Leave'], ['/support-staff', 'Class IV Staff']] },
     { title: 'Finance', items: [['/finance-overview', 'Finance Overview'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists']] },
+    { title: 'Library', items: [['/library', 'Library Monitoring']] },
     { title: 'Academics', items: [['/curriculum', 'BS Curriculum'], ['/insights', 'Reports & Insights']] },
     { title: 'Communication', items: [['/assistant', 'AI Assistant'], ['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar'], ['/complaints', 'Complaints']] },
     { title: 'Administration', items: [['/users', 'Users & HODs'], ['/settings', 'University Settings']] },
@@ -41,6 +43,12 @@ const MENU = {
     { title: 'My work', items: [['/staff-attendance', 'My Check-in & Leave']] },
     { title: 'Updates', items: [['/announcements', 'Announcements']] },
   ],
+  library_controller: [
+    { items: [['/dashboard', 'Dashboard']] },
+    { title: 'Library', items: [['/library', 'Library Desk & Books']] },
+    { title: 'My work', items: [['/staff-attendance', 'My Check-in & Leave']] },
+    { title: 'Help', items: [['/assistant', 'Library Assistant'], ['/announcements', 'Announcements']] },
+  ],
   teacher: [
     { items: [['/dashboard', 'Dashboard']] },
     { title: 'Teaching', items: [['/courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/staff-attendance', 'My Check-in & Leave'], ['/my-attendance', 'Student Attendance'], ['/examinations', 'Exam Date Sheet']] },
@@ -49,6 +57,7 @@ const MENU = {
   student: [
     { items: [['/dashboard', 'Dashboard']] },
     { title: 'Study', items: [['/my-courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/student-leave', 'My Leave'], ['/calendar', 'Academic Calendar']] },
+    { title: 'Library', items: [['/my-library', 'Library'], ['/assistant', 'Library Assistant']] },
     { title: 'Exams & results', items: [['/exams', 'Exams & Admission'], ['/results', 'My Results'], ['/my-performance', 'Academic Support']] },
     { title: 'Fees & records', items: [['/fees', 'Fees & Payments'], ['/documents', 'My Documents'], ['/my-record', 'My Academic Record']] },
     { title: 'Help', items: [['/complaints', 'Complaints'], ['/announcements', 'Announcements']] },
@@ -61,7 +70,7 @@ const ICON = {
   '/finance': '💰', '/finance-overview': '📈', '/promotion-fees': '🪜', '/fee-reminders': '⏰', '/admissions': '🪪', '/documents': '📄', '/complaints': '📣', '/insights': '📊', '/calendar': '📅',
   '/announcements': '📢', '/settings': '⚙️', '/my-courses': '📘', '/exams': '📝', '/results': '🏆', '/fees': '💳',
   '/my-performance': '📈', '/assistant': '🤖', '/applications': '📥', '/my-record': '🗂️', '/curriculum': '🧬', '/assign-teachers': '🧑‍🏫',
-  '/student-leave': '🏖️', '/support-staff': '🧹',
+  '/student-leave': '🏖️', '/support-staff': '🧹', '/library': '📚', '/my-library': '📖',
 };
 
 export default function Layout() {

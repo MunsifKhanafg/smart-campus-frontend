@@ -1,16 +1,54 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import api from '../api/axios.js';
 import TeacherDashboard from '../components/TeacherDashboard.jsx';
+import { money } from '../components/ui.jsx';
+import { Stat } from './library/common.jsx';
+import './library.css';
 
 const GREETING = {
   university_head: 'Open a department to see its semesters, classes, teachers, students and attendance.',
   hod: 'Open your department to manage semesters, classes, teachers and students.',
   finance_officer: 'Create fee notices and follow payments from the Finance Desk.',
+  library_controller: 'Issue and receive books, manage the catalogue and follow overdue books and fines from the Library page.',
   teacher: 'Your classes, timings and semesters are below. Open a subject to mark attendance, add topics and more.',
   student: 'Your courses, timetable, results and fees are in the menu.',
 };
+
+// A short library summary on the dashboard. Student: their own books and fines. Library controller and principal: the library totals.
+// If the library cannot be read the strip is simply not shown, so it can never break the dashboard.
+function LibraryStrip({ role }) {
+  const navigate = useNavigate();
+  const student = role === 'student';
+  const [d, setD] = useState(null);
+  useEffect(() => {
+    api.get(student ? '/library/me/summary' : '/library/dashboard').then((r) => setD(r.data.data)).catch(() => {});
+  }, [student]);
+  if (!d) return null;
+  const cur = d.currency || '';
+  return (
+    <>
+      <h3>Library</h3>
+      {student ? (
+        <div className="tiles">
+          <Stat icon="📖" value={d.totals.active} text="Books with me" onClick={() => navigate('/my-library')} />
+          <Stat icon="⏰" value={d.totals.overdue} text="Overdue books" tone="rose" onClick={() => navigate('/my-library')} />
+          <Stat icon="💸" value={money(d.totals.pending, cur)} text="Library fine to pay" tone="amber" onClick={() => navigate('/my-library')} />
+          <Stat icon="🔖" value={d.reservations.length} text="Reserved books" tone="teal" onClick={() => navigate('/my-library')} />
+        </div>
+      ) : (
+        <div className="tiles">
+          <Stat icon="📚" value={d.books.titles} text={`Book titles · ${d.books.copies} copies`} onClick={() => navigate('/library')} />
+          <Stat icon="✅" value={d.books.available} text="Available copies" tone="teal" onClick={() => navigate('/library?tab=books')} />
+          <Stat icon="📖" value={d.loans.issued} text="Issued books" tone="amber" onClick={() => navigate('/library?tab=loans')} />
+          <Stat icon="⏰" value={d.loans.overdue} text="Overdue books" tone="rose" onClick={() => navigate('/library?tab=loans')} />
+          <Stat icon="💸" value={money(d.fines.pending, cur)} text="Fines to collect" tone="rose" onClick={() => navigate('/library?tab=loans')} />
+        </div>
+      )}
+    </>
+  );
+}
 
 export default function Dashboard() {
   const { user } = useSelector((s) => s.auth);
@@ -49,9 +87,12 @@ export default function Dashboard() {
         </div>
         {user.role === 'hod' && myDeptId && <Link className="btn" to={`/departments/${myDeptId}`}>Open my department</Link>}
         {user.role === 'university_head' && <Link className="btn" to="/departments">View all departments</Link>}
+        {user.role === 'library_controller' && <Link className="btn" to="/library?tab=desk">Open the library desk</Link>}
+        {user.role === 'student' && <Link className="btn" to="/my-library">My library</Link>}
       </div>
 
       {user.role === 'teacher' && <TeacherDashboard />}
+      {['student', 'library_controller', 'university_head'].includes(user.role) && <LibraryStrip role={user.role} />}
 
       {stats && (
         <div className="tiles">

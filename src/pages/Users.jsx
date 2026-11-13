@@ -3,7 +3,9 @@ import { useSelector } from 'react-redux';
 import api, { errorMessage } from '../api/axios.js';
 import { useConfirm } from '../components/ConfirmModal.jsx';
 
-const LABEL = { university_head: 'University Head', hod: 'HOD', finance_officer: 'Finance Officer', teacher: 'Teacher', student: 'Student' };
+const LABEL = { university_head: 'University Head', hod: 'HOD', finance_officer: 'Finance Officer', library_controller: 'Library Controller', teacher: 'Teacher', student: 'Student' };
+// These two belong to the whole college (no department). Only the principal adds them.
+const COLLEGE_ROLES = ['finance_officer', 'library_controller'];
 
 // A readable temporary password with no look-alike characters (no 0/O, 1/l/I).
 const makePassword = () => {
@@ -42,7 +44,7 @@ export default function Users() {
     e.preventDefault();
     try {
       const body = { ...form };
-      if (!body.department || !isHead || body.role === 'finance_officer') delete body.department;
+      if (!body.department || !isHead || COLLEGE_ROLES.includes(body.role)) delete body.department;
       if (!body.phone) delete body.phone;
       if (!body.qualification) delete body.qualification;
       // Subjects the teacher can teach (comma separated). "Teaches in every department" is for common subjects (English, Mathematics...)
@@ -163,7 +165,7 @@ export default function Users() {
   };
 
   // Students are added on the Students page, because they need an academic profile too.
-  const roleOptions = isHead ? ['teacher', 'finance_officer'] : ['teacher'];
+  const roleOptions = isHead ? ['teacher', 'finance_officer', 'library_controller'] : ['teacher'];
 
   return (
     <>
@@ -194,7 +196,7 @@ export default function Users() {
                 {roleOptions.map((r) => <option key={r} value={r}>{LABEL[r]}</option>)}
               </select>
             </div>
-            {isHead && form.role !== 'finance_officer' && (
+            {isHead && !COLLEGE_ROLES.includes(form.role) && (
               <div>
                 <label>{form.allDepartments ? 'Home department (optional)' : 'Department'}</label>
                 <select required={!form.allDepartments} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>
@@ -209,6 +211,9 @@ export default function Users() {
               <input type="checkbox" checked={form.allDepartments} onChange={(e) => setForm({ ...form, allDepartments: e.target.checked })} />
               Teaches in every department (common subjects such as English, Mathematics, Islamiat, Pakistan Studies). No home department is needed.
             </label>
+          )}
+          {isHead && form.role === 'library_controller' && (
+            <p className="muted small" style={{ marginBottom: 0 }}>A library controller runs the library (books, issue and return, fines, reservations, reports) and marks their own attendance. They belong to no department. Only people with this role can manage the library; you monitor everything from Library Monitoring.</p>
           )}
           <div className="actions">
             <button className="btn btn-primary">Create</button>

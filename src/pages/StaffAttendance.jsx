@@ -58,7 +58,7 @@ export default function StaffAttendance() {
     <>
       <h1>Staff Attendance</h1>
       <p className="muted">
-        {isHead ? 'Teachers, HODs and the finance officer check in when the college starts. Late, absent and leave are recorded automatically.' : 'Check in when you reach the college. Late, absent and leave are recorded automatically.'}
+        {isHead ? 'Teachers, HODs, the finance officer and the library controller check in when the college starts. Late, absent and leave are recorded automatically.' : 'Check in when you reach the college. Late, absent and leave are recorded automatically.'}
       </p>
       <Alert msg={msg} />
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
@@ -322,7 +322,7 @@ function Team({ ok, fail, isHead }) {
             {data?.rows.map((r) => (
               <tr key={r.user._id}>
                 <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: '.5rem' }}><Avatar user={r.user} size={30} />{r.user.name}</span></td>
-                {isHead && <td>{r.user.department?.code || (r.user.role === 'finance_officer' ? 'Finance office' : 'All')}</td>}
+                {isHead && <td>{r.user.department?.code || (r.user.role === 'finance_officer' ? 'Finance office' : r.user.role === 'library_controller' ? 'Library' : 'All')}</td>}
                 <td><Badge value={r.status} />{r.minutesLate ? <div className="muted small">{r.minutesLate} min late</div> : null}</td>
                 <td>{timeOf(r.checkInAt)}</td><td>{timeOf(r.checkOutAt)}</td>
                 <td>
@@ -417,7 +417,7 @@ function MonthSummary({ fail }) {
           <tbody>
             {data?.rows.map((r) => (
               <tr key={r.user._id}>
-                <td>{r.user.name}</td><td>{r.user.department?.code || 'All'}</td><td>{r.present}</td><td>{r.late}</td><td>{r.minutesLate}</td><td>{r.absent}</td><td>{r.leave}</td>
+                <td>{r.user.name}</td><td>{r.user.department?.code || (r.user.role === 'finance_officer' ? 'Finance office' : r.user.role === 'library_controller' ? 'Library' : 'All')}</td><td>{r.present}</td><td>{r.late}</td><td>{r.minutesLate}</td><td>{r.absent}</td><td>{r.leave}</td>
               </tr>
             ))}
             {data && !data.rows.length && <tr><td colSpan={7} className="muted">No teachers found.</td></tr>}

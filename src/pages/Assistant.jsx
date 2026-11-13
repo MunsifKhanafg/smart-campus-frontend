@@ -20,12 +20,13 @@ const STARTERS = {
   people: ['List all teachers with their qualification, email and subjects', 'Show all students with roll numbers and semesters', 'How many students are in each semester?', 'Who is the HOD of each department?', 'Show students of semester 3'],
   records: ['CS-S1-03 (shows everything about the student)', 'attendance of CS-S1-03', 'fees of CS-S1-03', 'exam result of CS-S1-03', 'A teacher: type the name or email to see their courses', 'A course code, for example CS-101'],
   campus: ['Who teaches my subjects, and how can I contact them?', 'Show my weekly timetable', 'List the course contents of each of my subjects', 'How many credit hours do my subjects have in total?'],
+  library: ['Which books are available?', 'Which books have I borrowed?', 'When is my return deadline?', 'Do I have overdue books?', 'What is my pending fine?', 'How can I borrow or return a book?'],
 };
 
 export default function Assistant() {
   const { user } = useSelector((s) => s.auth);
   const confirm = useConfirm();
-  const canSeeCourses = user.role !== 'finance_officer'; // the finance office cannot list courses, it only searches records
+  const canSeeCourses = ['university_head', 'hod'].includes(user.role); // only they can list courses (the finance office, students and the library controller cannot)
   const [modes, setModes] = useState([]);
   const [configured, setConfigured] = useState(true);
   const [mode, setMode] = useState('records');
@@ -171,7 +172,7 @@ export default function Assistant() {
           <button type="button" className="btn btn-ghost as-hist" onClick={() => setDrawer(true)} aria-label="Open chat history">☰<span> History</span></button>
           <div className="grow">
             <h2>AI Assistant</h2>
-            <span className="muted small as-sub">Type a roll number or a student's name. Add "attendance", "fees" or "result" to see only that.</span>
+            <span className="muted small as-sub">{user.role === 'student' ? 'Ask about books, availability, return dates, overdue books and fines. You only see your own library information.' : user.role === 'library_controller' ? 'Ask about books, library totals, overdue books and fines. Type a roll number to see that student\'s library record.' : 'Type a roll number or a student\'s name. Add "attendance", "fees" or "result" to see only that.'}</span>
           </div>
           <button type="button" className="btn btn-ghost as-newtop" onClick={newChat}>New chat</button>
         </header>
@@ -197,7 +198,7 @@ export default function Assistant() {
             <small className="muted">Answers come only from the notes your teacher uploaded for this course.</small>
           </div>
         )}
-        {!configured && !['records', 'course', 'campus', 'people'].includes(mode) && <div className="alert alert-info">The AI model is not switched on, so this option answers by searching the records instead. Searching records never needs an AI key.</div>}
+        {!configured && !['records', 'course', 'campus', 'people', 'library'].includes(mode) && <div className="alert alert-info">The AI model is not switched on, so this option answers by searching the records instead. Searching records never needs an AI key.</div>}
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="as-scroll" ref={boxRef}>
