@@ -139,8 +139,8 @@ export default function App() {
             <Route path="/staff-attendance" element={<StaffAttendance />} />
           </Route>
 
-          {/* Library: the library controller runs it, the principal monitors it (read-only, plus the rules). Students have their own page. */}
-          <Route element={<ProtectedRoute roles={[LIB, HEAD]} />}>
+          {/* Library: only the library controller. The principal has no library screens. Students have their own read-only page. */}
+          <Route element={<ProtectedRoute roles={[LIB]} />}>
             <Route path="/library" element={<Library />} />
           </Route>
 

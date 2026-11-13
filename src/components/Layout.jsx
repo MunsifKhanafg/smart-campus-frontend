@@ -24,7 +24,6 @@ const MENU = {
     { items: [['/dashboard', 'Dashboard']] },
     { title: 'University', items: [['/departments', 'Departments'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/applications', 'New Applications'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance'], ['/student-leave', 'Student Leave'], ['/support-staff', 'Class IV Staff']] },
     { title: 'Finance', items: [['/finance-overview', 'Finance Overview'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists']] },
-    { title: 'Library', items: [['/library', 'Library Monitoring']] },
     { title: 'Academics', items: [['/curriculum', 'BS Curriculum'], ['/insights', 'Reports & Insights']] },
     { title: 'Communication', items: [['/assistant', 'AI Assistant'], ['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar'], ['/complaints', 'Complaints']] },
     { title: 'Administration', items: [['/users', 'Users & HODs'], ['/settings', 'University Settings']] },

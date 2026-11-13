@@ -16,7 +16,7 @@ const GREETING = {
   student: 'Your courses, timetable, results and fees are in the menu.',
 };
 
-// A short library summary on the dashboard. Student: their own books and fines. Library controller and principal: the library totals.
+// A short library summary on the dashboard. Student: their own books and return dates. Library controller: the library totals. (Never shown to the principal.)
 // If the library cannot be read the strip is simply not shown, so it can never break the dashboard.
 function LibraryStrip({ role }) {
   const navigate = useNavigate();
@@ -35,7 +35,6 @@ function LibraryStrip({ role }) {
           <Stat icon="📖" value={d.totals.active} text="Books with me" onClick={() => navigate('/my-library')} />
           <Stat icon="⏰" value={d.totals.overdue} text="Overdue books" tone="rose" onClick={() => navigate('/my-library')} />
           <Stat icon="💸" value={money(d.totals.pending, cur)} text="Library fine to pay" tone="amber" onClick={() => navigate('/my-library')} />
-          <Stat icon="🔖" value={d.reservations.length} text="Reserved books" tone="teal" onClick={() => navigate('/my-library')} />
         </div>
       ) : (
         <div className="tiles">
@@ -92,7 +91,7 @@ export default function Dashboard() {
       </div>
 
       {user.role === 'teacher' && <TeacherDashboard />}
-      {['student', 'library_controller', 'university_head'].includes(user.role) && <LibraryStrip role={user.role} />}
+      {['student', 'library_controller'].includes(user.role) && <LibraryStrip role={user.role} />}
 
       {stats && (
         <div className="tiles">
