@@ -33,6 +33,7 @@ export default function Overview({ run, ok, fail, go }) {
         <Stat icon="💸" value={m(d.fines.pending)} text="Fines to collect" tone="rose" onClick={() => go('loans', { status: 'unpaid' })} />
         <Stat icon="💰" value={m(d.fines.collected)} text={`Fines collected · waived ${m(d.fines.waived)}`} tone="teal" />
         <Stat icon="🎓" value={d.students.withBooks} text={`Students with books · ${d.students.withOverdue} overdue`} onClick={() => go('students', { holding: true })} />
+        <Stat icon="👥" value={d.students.everUsed ?? 0} text={`Students using the library · of ${d.students.total ?? 0}`} tone="teal" onClick={() => go('students')} />
         <Stat icon="🔖" value={d.reservations.waiting + d.reservations.ready} text={`Reservations · ${d.reservations.ready} ready`} onClick={() => go('reservations')} />
         <Stat icon="📣" value={d.complaints.open} text={`Open complaints · ${d.complaints.total} filed`} tone="amber" onClick={() => go('complaints')} />
         <Stat icon="🗓️" value={`${d.loans.issuedToday} / ${d.loans.returnedToday}`} text="Issued / returned today" />
@@ -74,6 +75,51 @@ export default function Overview({ run, ok, fail, go }) {
           )}
           <p className="muted small">This also runs by itself every 30 minutes: reminders before and after the return date, overdue detection and complaints.</p>
         </div>
+      </div>
+
+      <div className="card table-wrap">
+        <h3>Pending returns</h3>
+        <table>
+          <thead><tr><th>Student</th><th>Book</th><th>Issued</th><th>Return by</th><th>Status</th></tr></thead>
+          <tbody>
+            {(d.pendingReturns || []).map((p) => (
+              <tr key={p._id}>
+                <td>{p.student} · {p.rollNumber}</td><td>{p.book}</td><td>{p.issuedDay}</td><td><b>{p.dueDay}</b></td>
+                <td>{p.state === 'overdue' ? <span className="lib-state-overdue">Overdue · {p.overdueDays} day{p.overdueDays === 1 ? '' : 's'}</span> : p.state === 'due_soon' ? <span className="lib-state-due_soon">{p.daysLeft === 0 ? 'Due today' : `Due in ${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'}`}</span> : <span className="badge active">With the student</span>}</td>
+              </tr>
+            ))}
+            {!(d.pendingReturns || []).length && <tr><td colSpan={5} className="muted">No book is waiting to be returned.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card table-wrap">
+        <h3>Recent transactions</h3>
+        <table>
+          <thead><tr><th>When</th><th>Action</th><th>Student</th><th>Book</th><th>Copy</th></tr></thead>
+          <tbody>
+            {(d.recent || []).map((x) => (
+              <tr key={x._id}>
+                <td>{fmtDateTime(x.at)}</td><td><span className={`badge ${x.kind === 'returned' ? 'approved' : 'active'}`}>{x.kind === 'returned' ? 'Returned' : 'Issued'}</span></td>
+                <td>{x.student} · {x.rollNumber}</td><td>{x.book}</td><td><code>{x.copyCode}</code></td>
+              </tr>
+            ))}
+            {!(d.recent || []).length && <tr><td colSpan={5} className="muted">No book has been issued yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card table-wrap">
+        <h3>Department complaints</h3>
+        <table>
+          <thead><tr><th>Department</th><th>Open</th><th>All filed</th></tr></thead>
+          <tbody>
+            {(d.complaints.byDepartment || []).map((c) => (
+              <tr key={c.department.code}><td>{c.department.name} <span className="muted small">({c.department.code})</span></td><td>{c.open > 0 ? <b className="lib-state-overdue">{c.open}</b> : 0}</td><td>{c.total}</td></tr>
+            ))}
+            {!(d.complaints.byDepartment || []).length && <tr><td colSpan={3} className="muted">No department has been written to yet.</td></tr>}
+          </tbody>
+        </table>
       </div>
 
       <div className="card table-wrap">

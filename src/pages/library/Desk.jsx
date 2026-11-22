@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import api from '../../api/axios.js';
 import ScanButton from '../../components/ScanButton.jsx';
+import QuickDesk from './QuickDesk.jsx';
 import { Badge, label } from '../../components/ui.jsx';
 import { LoanActions, LoanState, Charges, useMoney } from './common.jsx';
 
@@ -64,6 +65,7 @@ export default function Desk({ ok, fail }) {
 
   return (
     <>
+      <QuickDesk ok={ok} fail={fail} />
       <div className="card lib-result">
         <h3>Scan or search</h3>
         <p className="muted small">Scan a book barcode, or type a Book ID, ISBN or student roll number. The result shows what it is and fills the forms below.</p>
@@ -103,7 +105,7 @@ export default function Desk({ ok, fail }) {
         {found?.type === 'student' && (
           <div style={{ marginTop: '.75rem' }}>
             <h4 style={{ margin: 0 }}>{found.student.name} · {found.student.rollNumber}</h4>
-            <p className="muted">{found.student.department?.name} · {found.student.semester} · phone {found.student.hasPhone ? found.student.phone : 'not registered (no SMS can be sent)'}</p>
+            <p className="muted">{found.student.department?.name} · {found.student.semester}</p>
             <p>Books out <b>{found.totals.active}</b> · overdue <b className={found.totals.overdue ? 'lib-state-overdue' : ''}>{found.totals.overdue}</b> · fine to pay <b>{m(found.totals.pending)}</b></p>
             {found.current.map((l) => (
               <div className="sub-card" key={l._id}>
@@ -132,7 +134,7 @@ export default function Desk({ ok, fail }) {
           </div>
           <label>Loan days (empty = the library rule)</label>
           <input type="number" min={1} max={120} value={issue.days} onChange={(e) => setIssue({ ...issue, days: e.target.value })} />
-          <p className="muted small">The return date is calculated from the day of issue. The student gets an SMS with the date, using the phone number in the student record.</p>
+          <p className="muted small">The return date is calculated from the day of issue. The student gets an in-app notification with the date.</p>
           <div className="actions"><button className="btn btn-primary" disabled={busy}>Issue book</button></div>
         </form>
 

@@ -74,6 +74,9 @@ export default function StaffAttendance() {
 
 // ---------------------------------------------------------------------------------------------
 function MyDay({ ok, fail }) {
+  const { user } = useSelector((s) => s.auth);
+  // The finance officer and the library controller belong to no department, so there is no HOD: the principal corrects their attendance.
+  const fixer = ['finance_officer', 'library_controller'].includes(user.role) ? 'the principal' : 'your HOD or the principal';
   const [today, setToday] = useState(null);
   const [month, setMonth] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -148,7 +151,7 @@ function MyDay({ ok, fail }) {
         {r && ['absent', 'leave'].includes(r.status) && (
           <p className="muted small" style={{ marginTop: '.5rem' }}>
             {r.topicsMoved ? `${r.topicsMoved} course content(s) planned for today were moved to the next teaching day. ` : ''}
-            {r.status === 'absent' ? 'If this is wrong, ask your HOD or the principal to correct it.' : ''}
+            {r.status === 'absent' ? `If this is wrong, ask ${fixer} to correct it.` : ''}
           </p>
         )}
       </div>

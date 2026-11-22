@@ -4,10 +4,61 @@ import api from '../../api/axios.js';
 import { Badge, fmtDate, fmtDateTime, label } from '../../components/ui.jsx';
 import { useConfirm } from '../../components/ConfirmModal.jsx';
 import { Pager, clean } from './common.jsx';
+import ScanButton from '../../components/ScanButton.jsx';
 
 // ---------------------------------------------------------------------------------------------
 // Reservations: students waiting for a title whose copies are all out. A returned copy is held for the first one in the queue.
+// The library controller writes a reservation down at the desk for a student who asks for a book whose copies are all out.
+// Students cannot reserve online: they ask at the Library Office.
+function DeskReserve({ ok, fail, onDone }) {
+  const [f, setF] = useState({ student: '', code: '' });
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { data } = await api.post('/library/reservations', { student: f.student.trim(), code: f.code.trim() });
+      ok(data.message);
+      setF({ student: '', code: '' });
+      onDone();
+    } catch (err) { fail(err); } finally { setBusy(false); }
+  };
+  return (
+    <form className="card" onSubmit={submit}>
+      <h3>Reserve a book for a student</h3>
+      <p className="muted small">Use this when every copy of a book is out. When a copy comes back it is held for the first student in the list, and the student is notified.</p>
+      <div className="form-grid">
+        <div>
+          <label>Student ID</label>
+          <div className="lib-scan">
+            <input required value={f.student} onChange={(e) => setF({ ...f, student: e.target.value })} placeholder="e.g. CS-S1-03" />
+            <ScanButton onCode={(c) => setF((s) => ({ ...s, student: c }))} text="📷 Scan ID" title="Scan the student ID card" heading="Scan the student ID card" />
+          </div>
+        </div>
+        <div>
+          <label>Book ID, ISBN or copy barcode</label>
+          <div className="lib-scan">
+            <input required value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="e.g. LB-000012" />
+            <ScanButton onCode={(c) => setF((s) => ({ ...s, code: c }))} text="📷 Scan Book" title="Scan the book" heading="Scan the book" />
+          </div>
+        </div>
+      </div>
+      <div className="actions"><button className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Add reservation'}</button></div>
+    </form>
+  );
+}
+
 export function Reservations({ run, ok, fail }) {
+  const [n, setN] = useState(0); // a new number reloads the list below after a reservation was added
+  return (
+    <>
+      {run && <DeskReserve ok={ok} fail={fail} onDone={() => setN((x) => x + 1)} />}
+      <ReservationsList key={n} run={run} ok={ok} fail={fail} />
+    </>
+  );
+}
+
+function ReservationsList({ run, ok, fail }) {
   const confirm = useConfirm();
   const [status, setStatus] = useState('open');
   const [page, setPage] = useState(1);
@@ -50,7 +101,7 @@ export function Reservations({ run, ok, fail }) {
 
 // ---------------------------------------------------------------------------------------------
 // The history of every SMS and in-app message the library sent, and whether the text message went out.
-const SMS = { sent: ['approved', 'SMS sent'], no_phone: ['pending', 'No phone number'], not_configured: ['pending', 'SMS not set up'], disabled: ['archived', 'SMS off in Rules'], failed: ['rejected', 'Failed'], pending: ['pending', 'Sending'] };
+const SMS = { in_app: ['approved', 'Notified'], pending: ['pending', 'Sending'], failed: ['rejected', 'Failed'] };
 export function Messages({ fail }) {
   const [f, setF] = useState({ status: '', kind: '' });
   const [page, setPage] = useState(1);
@@ -60,7 +111,7 @@ export function Messages({ fail }) {
 
   return (
     <>
-      {!data.smsConfigured && <div className="alert alert-info">The SMS service is not configured on the server, so students only get the in-app notification. The administrator sets the SMS provider in <code>server/.env</code>.</div>}
+      
       <p>{Object.entries(data.counts).map(([k, n]) => <span key={k} style={{ marginRight: '1rem' }}>{(SMS[k] || [, k])[1]} <b>{n}</b></span>)}</p>
       <div className="card filters">
         <select value={f.status} onChange={(e) => { setPage(1); setF({ ...f, status: e.target.value }); }}><option value="">All results</option>{Object.entries(SMS).map(([k, [, t]]) => <option key={k} value={k}>{t}</option>)}</select>
@@ -70,7 +121,7 @@ export function Messages({ fail }) {
       </div>
       <div className="card table-wrap">
         <table>
-          <thead><tr><th>When</th><th>Student</th><th>Kind</th><th>Message</th><th>SMS</th></tr></thead>
+          <thead><tr><th>When</th><th>Student</th><th>Kind</th><th>Message</th><th>Delivery</th></tr></thead>
           <tbody>
             {data.items.map((x) => (
               <tr key={x._id}><td>{fmtDateTime(x.at)}</td><td>{x.student} · {x.rollNumber}</td><td>{label(x.kind)}</td><td>{x.text}</td><td><Badge value={(SMS[x.status] || ['pending'])[0]} text={(SMS[x.status] || [, x.status])[1]} /></td></tr>
@@ -97,7 +148,7 @@ export function LibraryComplaints({ fail, role }) {
       <div className="card">
         <p style={{ margin: 0 }}>
           When a student does not return a book, the library files a complaint to the student's department by itself (student, book, issue date and overdue days included).
-          The HOD reviews and resolves it on the <b>Complaints</b> page{role === 'university_head' ? <> (you can open it <Link to="/complaints">here</Link>)</> : ''}. The principal is informed when the delay is long. A complaint closes by itself when the book is returned.
+          The HOD reviews and resolves it on the <b>Complaints</b> page{role === 'university_head' ? <> (you can open it <Link to="/complaints">here</Link>)</> : ''}. A complaint closes by itself when the book is returned.
         </p>
       </div>
       <div className="card filters">

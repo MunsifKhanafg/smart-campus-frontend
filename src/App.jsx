@@ -62,6 +62,7 @@ import StudentLeave from './pages/StudentLeave.jsx';
 import SupportStaff from './pages/SupportStaff.jsx';
 import Library from './pages/Library.jsx';
 import MyLibrary from './pages/MyLibrary.jsx';
+import Proformas from './pages/Proformas.jsx';
 
 // The University Head browses students by department boxes; an HOD uses the full management page.
 function StudentsEntry() {
@@ -139,9 +140,15 @@ export default function App() {
             <Route path="/staff-attendance" element={<StaffAttendance />} />
           </Route>
 
-          {/* Library: only the library controller. The principal has no library screens. Students have their own read-only page. */}
-          <Route element={<ProtectedRoute roles={[LIB]} />}>
+          {/* Library: the library controller and the principal run it (the server checks every call again). Students have their own read-only page. */}
+          <Route element={<ProtectedRoute roles={[LIB, HEAD]} />}>
             <Route path="/library" element={<Library />} />
+            <Route path="/library/:tab" element={<Library />} />
+          </Route>
+
+          {/* Marks proformas sent to the office: the principal, the HOD (Examination Department) and the teacher who sent them */}
+          <Route element={<ProtectedRoute roles={[HEAD, HOD, TEA]} />}>
+            <Route path="/proformas" element={<Proformas />} />
           </Route>
 
           {/* Student leave: the student asks, the HOD decides, the principal sees everything */}

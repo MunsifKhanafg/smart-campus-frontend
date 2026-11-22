@@ -1,0 +1,16 @@
+/* Marks proforma sheet (course page preview and office page) */
+.proforma-sheet { font-size: .92rem; }
+.proforma-head { text-align: center; margin-bottom: .75rem; }
+.proforma-info { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem 1.25rem; margin: .5rem 0 1rem; }
+.proforma-info div { display: flex; flex-direction: column; min-width: 0; }
+.proforma-info span { font-size: .78rem; }
+.proforma-info b { overflow-wrap: anywhere; }
+.proforma-table th, .proforma-table td { text-align: center; white-space: nowrap; }
+.proforma-table th:nth-child(3), .proforma-table td:nth-child(3) { text-align: left; white-space: normal; min-width: 150px; }
+.proforma-table th small { font-weight: 400; opacity: .7; }
+@media (max-width: 720px) {
+  .proforma-info { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .proforma-info { grid-template-columns: 1fr; }
+}

@@ -29,9 +29,9 @@ export default function Rules({ ok, fail }) {
       blockIssueIfOverdue: f.blockIssueIfOverdue, blockIssueIfFineUnpaid: f.blockIssueIfFineUnpaid,
       finePerDay: num(f.finePerDay), graceDays: num(f.graceDays), maxFinePerBook: f.maxFinePerBook === '' ? null : num(f.maxFinePerBook),
       lostPenaltyMultiplier: num(f.lostPenaltyMultiplier), lostProcessingFee: num(f.lostProcessingFee),
-      smsEnabled: f.smsEnabled, reminderBeforeDays: list(f.reminderBeforeDays).map(num), remindOnDueDay: f.remindOnDueDay,
+      reminderBeforeDays: list(f.reminderBeforeDays).map(num), remindOnDueDay: f.remindOnDueDay,
       overdueReminderEveryDays: num(f.overdueReminderEveryDays), maxOverdueReminders: num(f.maxOverdueReminders),
-      complaintAfterOverdueDays: num(f.complaintAfterOverdueDays), principalAfterOverdueDays: num(f.principalAfterOverdueDays),
+      complaintAfterOverdueDays: num(f.complaintAfterOverdueDays),
       reservationHoldDays: num(f.reservationHoldDays), maxReservationsPerStudent: num(f.maxReservationsPerStudent),
       categories: list(f.categories),
     };
@@ -66,9 +66,9 @@ export default function Rules({ ok, fail }) {
       </div>
 
       <div className="card">
-        <h3>SMS and reminders</h3>
-        {!info.providerConfigured && <div className="alert alert-info">The SMS provider is not set up on the server yet (<code>server/.env</code>), so only in-app notifications are sent. Everything below is ready for when it is.</div>}
-        <label className="check"><input type="checkbox" checked={f.smsEnabled} onChange={flag('smsEnabled')} /> Send SMS to the phone number saved in the student's record (issue, reminders, return)</label>
+        <h3>Reminders (in-app notifications)</h3>
+        
+        
         <div className="form-grid">
           <div><label>Remind this many days before the return date</label><input value={f.reminderBeforeDays} onChange={set('reminderBeforeDays')} placeholder="3, 1" /></div>
           <div><label>After the return date, repeat every (days)</label><input type="number" min={1} max={30} required value={f.overdueReminderEveryDays} onChange={set('overdueReminderEveryDays')} /></div>
@@ -81,8 +81,8 @@ export default function Rules({ ok, fail }) {
       <div className="card">
         <h3>Complaints</h3>
         <div className="form-grid">
-          <div><label>File a complaint to the department after (days overdue)</label><input type="number" min={1} max={365} required value={f.complaintAfterOverdueDays} onChange={set('complaintAfterOverdueDays')} /></div>
-          <div><label>Inform the principal after (days overdue)</label><input type="number" min={1} max={730} required value={f.principalAfterOverdueDays} onChange={set('principalAfterOverdueDays')} /></div>
+          <div><label>Notify the student's department (HOD) after this many days overdue</label><input type="number" min={1} max={365} required value={f.complaintAfterOverdueDays} onChange={set('complaintAfterOverdueDays')} /></div>
+          
         </div>
       </div>
 

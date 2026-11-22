@@ -9,8 +9,8 @@ import './library.css';
 // The student's own library. Everything comes from the logged-in student's account (the server never takes a student id from the browser):
 //   search the catalogue and see which books are available, reserve a book whose copies are all out,
 //   the books I have now with their return dates, renewals, my fines, my reservations, the messages the library sent me, and my history.
-const TABS = [['books', 'Search books'], ['current', 'My books'], ['fines', 'Fines'], ['reservations', 'Reservations'], ['messages', 'Notifications'], ['history', 'History']];
-const SMS = { sent: 'SMS sent', no_phone: 'No phone number on file', not_configured: 'In-app only', disabled: 'In-app only', failed: 'SMS failed', pending: 'Sending' };
+const TABS = [['books', 'Available books'], ['current', 'My books'], ['messages', 'Notifications'], ['history', 'History']];
+const SMS = { in_app: 'Sent to you', pending: 'Sending', failed: 'Not delivered' };
 
 export default function MyLibrary() {
   const [msg, ok, fail] = useFlash();
@@ -36,8 +36,8 @@ export default function MyLibrary() {
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
       {tab === 'books' && <Catalogue ok={ok} fail={fail} onChange={loadSummary} />}
       {tab === 'current' && <Current sum={sum} ok={ok} fail={fail} onChange={loadSummary} />}
-      {tab === 'fines' && <Fines sum={sum} />}
-      {tab === 'reservations' && <MyReservations sum={sum} ok={ok} fail={fail} onChange={loadSummary} />}
+      
+      
       {tab === 'messages' && <MyMessages fail={fail} />}
       {tab === 'history' && <History sum={sum} />}
 
@@ -45,11 +45,11 @@ export default function MyLibrary() {
         <div className="card lib-howto">
           <h3>How the library works</h3>
           <ol>
-            <li>Find a book here and check that a copy is available. Take it to the library desk with your student card; the library controller issues it for <b>{sum.rules.loanDays} days</b> (up to {sum.rules.maxBooksPerStudent} books at a time).</li>
-            <li>You get an SMS (to the phone number in your student record) and a notification with the return date, and reminders before and after it.</li>
-            <li>Return the book at the desk. {sum.rules.maxRenewals ? `You can renew a book ${sum.rules.maxRenewals} time${sum.rules.maxRenewals === 1 ? '' : 's'} (${sum.rules.renewDays} more days) from My books, if nobody is waiting for it.` : 'Books cannot be renewed.'}</li>
+            <li>Find a book here and check that a copy is available. Visit the Library Office with your student card: only the library controller issues and receives books. A book is issued for <b>{sum.rules.loanDays} days</b> (up to {sum.rules.maxBooksPerStudent} books at a time).</li>
+            <li>You get a notification here (the bell in the top bar) with the return date, and reminders before and after it.</li>
+            <li>Return the book at the Library Office on or before the return date. Books cannot be returned or renewed online.</li>
             <li>After the return date the fine is <b>{sum.currency} {sum.rules.finePerDay}</b> per book per day{sum.rules.graceDays ? ` (after ${sum.rules.graceDays} grace day${sum.rules.graceDays === 1 ? '' : 's'})` : ''}. Pay fines at the library desk.</li>
-            <li>If every copy is out, press <b>Reserve</b>. When a copy comes back it is held for you for {sum.rules.reservationHoldDays} days and you are told.</li>
+            <li>If every copy is out, ask the library controller at the Library Office to put you on the waiting list. You are notified when a copy is ready.</li>
           </ol>
         </div>
       )}
@@ -63,8 +63,8 @@ function Tiles({ sum, go }) {
     <div className="tiles">
       <Stat icon="📖" value={sum.totals.active} text="Books with me" onClick={() => go('current')} />
       <Stat icon="⏰" value={sum.totals.overdue} text="Overdue" tone="rose" onClick={() => go('current')} />
-      <Stat icon="💸" value={m(sum.totals.pending)} text="Fine to pay" tone="amber" onClick={() => go('fines')} />
-      <Stat icon="🔖" value={sum.reservations.length} text={`Reserved · ${sum.reservations.filter((r) => r.status === 'ready').length} ready`} tone="teal" onClick={() => go('reservations')} />
+      <Stat icon="💸" value={m(sum.totals.pending)} text="Fine to pay" tone="amber" onClick={() => go('current')} />
+      
     </div>
   );
 }
@@ -85,14 +85,8 @@ function Catalogue({ ok, fail, onChange }) {
 
   const change = (k) => (e) => { setPage(1); setF({ ...f, [k]: e.target.value }); };
 
-  const reserve = async (b) => {
-    try { const { data: res } = await api.post('/library/me/reserve', { book: b._id }); ok(res.message); load(); onChange(); } catch (e) { fail(e); }
-  };
-  const cancel = async (b) => {
-    const yes = await confirm({ title: 'Cancel your reservation?', message: `You will lose your place in the waiting list for "${b.title}".`, confirmText: 'Cancel reservation', cancelText: 'Keep it' });
-    if (!yes) return;
-    try { const { data: res } = await api.delete(`/library/me/reservations/${b.mine.reservation._id}`); ok(res.message); load(); onChange(); } catch (e) { fail(e); }
-  };
+
+
 
   return (
     <>
@@ -112,12 +106,12 @@ function Catalogue({ ok, fail, onChange }) {
                 <td>{b.copiesAvailable} of {b.copiesTotal} available</td>
                 <td>
                   {b.mine?.borrowed ? <span className="badge active">You have it · due {b.mine.dueDay}</span>
-                    : b.mine?.reservation ? <Badge value={b.mine.reservation.status} text={b.mine.reservation.status === 'ready' ? `Ready · collect by ${b.mine.reservation.holdUntilDay}` : 'Reserved · waiting'} />
+                    
                     : b.available ? <span className="badge approved">Available</span> : <span className="badge rejected">All copies out</span>}
                 </td>
                 <td className="actions">
-                  {!b.mine?.borrowed && !b.mine?.reservation && !b.available && b.copiesTotal > 0 && <button className="btn btn-small btn-primary" onClick={() => reserve(b)}>Reserve</button>}
-                  {b.mine?.reservation && <button className="btn btn-small" onClick={() => cancel(b)}>Cancel reservation</button>}
+                  
+                  
                 </td>
               </tr>
             ))}
@@ -125,7 +119,7 @@ function Catalogue({ ok, fail, onChange }) {
           </tbody>
         </table>
         <Pager page={page} pages={data.pages} total={data.total} onPage={setPage} />
-        <p className="muted small">To borrow an available book, take it to the library desk with your student card.</p>
+        <p className="muted small">Books are issued and returned only at the Library Office. Visit the office with your student card to borrow an available book.</p>
       </div>
     </>
   );
@@ -135,10 +129,8 @@ function Catalogue({ ok, fail, onChange }) {
 function Current({ sum, ok, fail, onChange }) {
   const m = useMoney();
   if (!sum) return <div className="card muted">Loading...</div>;
-  const renew = async (l) => {
-    try { const { data } = await api.post(`/library/me/loans/${l._id}/renew`); ok(data.message); onChange(); } catch (e) { fail(e); }
-  };
-  const canRenew = (l) => sum.rules.maxRenewals > 0 && l.renewals < sum.rules.maxRenewals && l.state !== 'overdue';
+
+  
 
   return (
     <div className="card table-wrap">
@@ -150,7 +142,7 @@ function Current({ sum, ok, fail, onChange }) {
               <td><b>{l.book?.title}</b><div className="muted small">{(l.book?.authors || []).join(', ')}{l.renewals ? ` · renewed ${l.renewals}×` : ''}</div></td>
               <td><code>{l.copyCode}</code></td><td>{l.issuedDay}</td><td><b>{l.dueDay}</b></td>
               <td><LoanState loan={l} /></td><td>{l.fine > 0 ? <b className="lib-state-overdue">{m(l.fine)}</b> : '—'}</td>
-              <td>{canRenew(l) && <button className="btn btn-small" onClick={() => renew(l)}>Renew</button>}</td>
+              
             </tr>
           ))}
           {!sum.current.length && <tr><td colSpan={7} className="muted">You have no borrowed books right now.</td></tr>}
@@ -223,12 +215,12 @@ function MyMessages({ fail }) {
   return (
     <div className="card table-wrap">
       <table>
-        <thead><tr><th>When</th><th>About</th><th>Message</th><th>SMS</th></tr></thead>
+        <thead><tr><th>When</th><th>About</th><th>Message</th><th>Status</th></tr></thead>
         <tbody>
           {rows.map((x) => (
             <tr key={x._id}><td>{fmtDateTime(x.at)}</td><td>{label(x.kind)}</td><td>{x.text}</td><td className="muted small">{SMS[x.sms] || x.sms}</td></tr>
           ))}
-          {!rows.length && <tr><td colSpan={4} className="muted">No library messages yet. You will be told here (and by SMS) when a book is issued, when it is due and when it is overdue.</td></tr>}
+          {!rows.length && <tr><td colSpan={4} className="muted">No library messages yet. You will be told here when a book is issued, when it is due and when it is overdue.</td></tr>}
         </tbody>
       </table>
     </div>

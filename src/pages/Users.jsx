@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import api, { errorMessage } from '../api/axios.js';
 import { useConfirm } from '../components/ConfirmModal.jsx';
 
@@ -20,10 +21,21 @@ export default function Users() {
   const confirm = useConfirm();
   const [users, setUsers] = useState([]);
   const [depts, setDepts] = useState([]);
-  const [filters, setFilters] = useState({ role: '', department: '', search: '' });
+  const [params] = useSearchParams();
+  const [filters, setFilters] = useState({ role: params.get('role') || '', department: '', search: '' }); // /users?role=library_controller opens the list of library controllers
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'teacher', department: '', phone: '', qualification: '', maxWeeklyHours: '', subjects: '', allDepartments: false });
+
+  // The menu link /users?role=library_controller can be used again while this page is open, so the filter follows the address.
+  const wantedRole = params.get('role') || '';
+  useEffect(() => { setFilters((f) => (f.role === wantedRole ? f : { ...f, role: wantedRole })); }, [wantedRole]);
+
+  const addLibraryController = () => {
+    setForm({ name: '', email: '', password: makePassword(), role: 'library_controller', department: '', phone: '', qualification: '', maxWeeklyHours: '', subjects: '', allDepartments: false });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const load = useCallback(async () => {
     try {
@@ -171,7 +183,10 @@ export default function Users() {
     <>
       <div className="row-between">
         <h1>{isHead ? 'Users' : 'Teachers & Students'}</h1>
-        <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>+ Add user</button>
+        <div className="actions">
+          {isHead && <button className="btn" onClick={addLibraryController}>+ Add Library Controller</button>}
+          <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>+ Add user</button>
+        </div>
       </div>
       {msg.text && <div className={`alert alert-${msg.type}`}>{msg.text}</div>}
 

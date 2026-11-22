@@ -19,19 +19,28 @@ const ROLE_LABEL = {
 
 // Each role only sees the pages it really works with, grouped under small headings.
 // (Pages a role should not open are also blocked by the routes in App.jsx and by the server.)
+// The library menu, one page per entry. The library controller and the principal both get it.
+const LIBRARY_ITEMS = [
+  ['/library', 'Dashboard'], ['/library/desk', 'Issue & Return'], ['/library/books', 'Books'], ['/library/loans', 'Loans'], ['/library/students', 'Students'],
+  ['/library/reservations', 'Reservations'], ['/library/messages', 'Notifications'], ['/library/complaints', 'Complaints'], ['/library/labels', 'Barcode Labels'],
+  ['/library/reports', 'Reports'], ['/library/activity', 'Activity Log'], ['/library/rules', 'Rules'],
+];
+
 const MENU = {
   university_head: [
     { items: [['/dashboard', 'Dashboard']] },
     { title: 'University', items: [['/departments', 'Departments'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/applications', 'New Applications'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance'], ['/student-leave', 'Student Leave'], ['/support-staff', 'Class IV Staff']] },
+    
+    { title: 'Library', items: [['/library', 'Library Monitoring'], ['/users?role=library_controller', 'Library Controller Access']] },
     { title: 'Finance', items: [['/finance-overview', 'Finance Overview'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists']] },
-    { title: 'Academics', items: [['/curriculum', 'BS Curriculum'], ['/insights', 'Reports & Insights']] },
+    { title: 'Academics', items: [['/curriculum', 'BS Curriculum'], ['/proformas', 'Marks Proformas'], ['/insights', 'Reports & Insights']] },
     { title: 'Communication', items: [['/assistant', 'AI Assistant'], ['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar'], ['/complaints', 'Complaints']] },
     { title: 'Administration', items: [['/users', 'Users & HODs'], ['/settings', 'University Settings']] },
   ],
   hod: [
     { items: [['/dashboard', 'Dashboard']] },
     { title: 'My department', items: [['/departments', 'My Department'], ['/teachers', 'Teachers'], ['/students', 'Students'], ['/attendance', 'Attendance'], ['/staff-attendance', 'Staff Attendance'], ['/student-leave', 'Student Leave'], ['/support-staff', 'Class IV Staff']] },
-    { title: 'Academics', items: [['/semesters', 'Semesters'], ['/curriculum', 'BS Curriculum'], ['/assign-teachers', 'Assign Teachers'], ['/courses', 'Courses'], ['/timetable', 'Timetable'], ['/examinations', 'Examinations']] },
+    { title: 'Academics', items: [['/semesters', 'Semesters'], ['/curriculum', 'BS Curriculum'], ['/assign-teachers', 'Assign Teachers'], ['/courses', 'Courses'], ['/timetable', 'Timetable'], ['/examinations', 'Examinations'], ['/proformas', 'Marks Proformas']] },
     { title: 'Students & fees', items: [['/applications', 'New Applications'], ['/admissions', 'Exam Admissions'], ['/documents', 'Student Documents'], ['/fee-notices', 'Fee Notices'], ['/promotion-fees', 'Promotion Fees'], ['/fee-reminders', 'Unpaid Lists']] },
     { title: 'Support', items: [['/assistant', 'AI Assistant'], ['/complaints', 'Complaints'], ['/insights', 'Reports & Insights'], ['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar']] },
   ],
@@ -44,13 +53,17 @@ const MENU = {
   ],
   library_controller: [
     { items: [['/dashboard', 'Dashboard']] },
-    { title: 'Library', items: [['/library', 'Library Desk & Books']] },
+    { title: 'Library', items: [
+      ['/library', 'Dashboard'], ['/library/desk', 'Issue & Return'], ['/library/books', 'Books'], ['/library/loans', 'Loans'], ['/library/students', 'Students'],
+      ['/library/reservations', 'Reservations'], ['/library/messages', 'Notifications'], ['/library/complaints', 'Complaints'], ['/library/labels', 'Barcode Labels'],
+      ['/library/reports', 'Reports'], ['/library/activity', 'Activity Log'], ['/library/rules', 'Rules'],
+    ] },
     { title: 'My work', items: [['/staff-attendance', 'My Check-in & Leave']] },
     { title: 'Help', items: [['/assistant', 'Library Assistant'], ['/announcements', 'Announcements']] },
   ],
   teacher: [
     { items: [['/dashboard', 'Dashboard']] },
-    { title: 'Teaching', items: [['/courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/staff-attendance', 'My Check-in & Leave'], ['/my-attendance', 'Student Attendance'], ['/examinations', 'Exam Date Sheet']] },
+    { title: 'Teaching', items: [['/courses', 'My Courses'], ['/my-timetable', 'My Timetable'], ['/staff-attendance', 'My Check-in & Leave'], ['/my-attendance', 'Student Attendance'], ['/examinations', 'Exam Date Sheet'], ['/proformas', 'Sent Proformas']] },
     { title: 'Updates', items: [['/announcements', 'Announcements'], ['/calendar', 'Academic Calendar']] },
   ],
   student: [
@@ -69,8 +82,14 @@ const ICON = {
   '/finance': '💰', '/finance-overview': '📈', '/promotion-fees': '🪜', '/fee-reminders': '⏰', '/admissions': '🪪', '/documents': '📄', '/complaints': '📣', '/insights': '📊', '/calendar': '📅',
   '/announcements': '📢', '/settings': '⚙️', '/my-courses': '📘', '/exams': '📝', '/results': '🏆', '/fees': '💳',
   '/my-performance': '📈', '/assistant': '🤖', '/applications': '📥', '/my-record': '🗂️', '/curriculum': '🧬', '/assign-teachers': '🧑‍🏫',
-  '/student-leave': '🏖️', '/support-staff': '🧹', '/library': '📚', '/my-library': '📖',
+  '/student-leave': '🏖️', '/support-staff': '🧹', '/library': '📚', '/my-library': '📖', '/proformas': '📝', '/users?role=library_controller': '🔑',
+  '/library/desk': '🔁', '/library/books': '📖', '/library/loans': '📋', '/library/students': '🎓', '/library/reservations': '🔖', '/library/messages': '🔔',
+  '/library/complaints': '📣', '/library/labels': '🏷️', '/library/reports': '📊', '/library/activity': '🕑', '/library/rules': '⚙️',
 };
+
+// Every part of the library has its own page (/library, /library/desk, /library/books ...), opened from the left menu.
+// The Dashboard link (/library) is active only on that exact page; the others are active on their own page.
+
 
 export default function Layout() {
   const { user } = useSelector((s) => s.auth);
@@ -108,6 +127,14 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const itemActive = (to, isActive) => {
+    if (to === '/library') return location.pathname === '/library' || (location.pathname.startsWith('/library/') && user.role === 'university_head');
+    // "Library Controller Access" and "Users & HODs" are the same page; each is lit only for its own link.
+    if (to.startsWith('/users?')) return location.pathname === '/users' && location.search === to.slice('/users'.length);
+    if (to === '/users') return location.pathname === '/users' && !location.search.includes('library_controller');
+    return isActive;
+  };
+
   return (
     <div className="shell">
       {open && <div className="drawer-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />}
@@ -118,7 +145,7 @@ export default function Layout() {
             <div key={group.title || i} className="nav-group">
               {group.title && <div className="nav-title">{group.title}</div>}
               {group.items.map(([to, label]) => (
-                <NavLink key={to} to={to} className={({ isActive }) => (isActive ? 'active' : '')}>
+                <NavLink key={to} to={to} className={({ isActive }) => (itemActive(to, isActive) ? 'active' : '')}>
                   <span className="nav-ico">{ICON[to] || '•'}</span>{label}
                 </NavLink>
               ))}

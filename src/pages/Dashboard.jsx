@@ -39,10 +39,10 @@ function LibraryStrip({ role }) {
       ) : (
         <div className="tiles">
           <Stat icon="📚" value={d.books.titles} text={`Book titles · ${d.books.copies} copies`} onClick={() => navigate('/library')} />
-          <Stat icon="✅" value={d.books.available} text="Available copies" tone="teal" onClick={() => navigate('/library?tab=books')} />
-          <Stat icon="📖" value={d.loans.issued} text="Issued books" tone="amber" onClick={() => navigate('/library?tab=loans')} />
-          <Stat icon="⏰" value={d.loans.overdue} text="Overdue books" tone="rose" onClick={() => navigate('/library?tab=loans')} />
-          <Stat icon="💸" value={money(d.fines.pending, cur)} text="Fines to collect" tone="rose" onClick={() => navigate('/library?tab=loans')} />
+          <Stat icon="✅" value={d.books.available} text="Available copies" tone="teal" onClick={() => navigate('/library/books')} />
+          <Stat icon="📖" value={d.loans.issued} text="Issued books" tone="amber" onClick={() => navigate('/library/loans')} />
+          <Stat icon="⏰" value={d.loans.overdue} text="Overdue books" tone="rose" onClick={() => navigate('/library/loans')} />
+          <Stat icon="💸" value={money(d.fines.pending, cur)} text="Fines to collect" tone="rose" onClick={() => navigate('/library/loans')} />
         </div>
       )}
     </>
@@ -86,7 +86,7 @@ export default function Dashboard() {
         </div>
         {user.role === 'hod' && myDeptId && <Link className="btn" to={`/departments/${myDeptId}`}>Open my department</Link>}
         {user.role === 'university_head' && <Link className="btn" to="/departments">View all departments</Link>}
-        {user.role === 'library_controller' && <Link className="btn" to="/library?tab=desk">Open the library desk</Link>}
+        {user.role === 'library_controller' && <Link className="btn" to="/library/desk">Open the library desk</Link>}
         {user.role === 'student' && <Link className="btn" to="/my-library">My library</Link>}
       </div>
 
