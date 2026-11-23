@@ -51,9 +51,9 @@ export default function AssistantTab({ courseId }) {
         <h3>Ask about this course</h3>
         <Alert msg={msg} />
         <div className="chat">
-          {!messages.length && <p className="muted">Ask a question about the lecture notes and slides of this course. Topics that are not released yet are never used for students.</p>}
+          {!messages.length && <p className="muted">Type the name of a topic (for example “Baseband and Broadband Transmission”) to see when it is taught, by whom, and its notes. Or ask any question about the lecture notes and slides of this course. Topics that are not taught yet only show their date.</p>}
           {messages.map((m, i) => (
-            <div key={i} className={`bubble ${m.role}`}>
+            <div key={i} className={`bubble ${m.role}`} style={{ whiteSpace: 'pre-wrap' }}>
               {m.content}
               {m.role === 'assistant' && (
                 <div className="muted small" style={{ marginTop: '.4rem' }}>

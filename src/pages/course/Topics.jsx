@@ -22,6 +22,7 @@ export default function Topics({ courseId, canEdit, outline }) {
   const [editId, setEditId] = useState(null);
   const [picked, setPicked] = useState({}); // topicId -> FileList
   const [rev, setRev] = useState(0); // bumped whenever the topics change, so the planner summary reloads
+  const [q, setQ] = useState(''); // search box: finds topics by their title or description
 
   const load = useCallback(async () => {
     try {
@@ -86,10 +87,15 @@ export default function Topics({ courseId, canEdit, outline }) {
   // One block per DATE, in date order. A date holds its topics (numbered 1), 2) ...) and/or a quiz or presentation.
   const byDate = new Map();
   const block = (key) => { if (!byDate.has(key)) byDate.set(key, { key, topics: [], assessments: [] }); return byDate.get(key); };
-  topics.forEach((t) => block(toInputDate(t.scheduledDate)).topics.push(t));
-  assess.forEach((a) => block(a.date).assessments.push(a));
+  // A plain text search (no AI) over what this person may see: the title and, for released topics, the description and file names.
+  const needle = q.trim().toLowerCase();
+  const matches = (t) => [t.title, t.description, ...(t.materials || []).map((m) => m.originalName)].some((x) => String(x || '').toLowerCase().includes(needle));
+  const shownTopics = needle ? topics.filter(matches) : topics;
+  topics.length && shownTopics.forEach((t) => block(toInputDate(t.scheduledDate)).topics.push(t));
+  if (!needle) assess.forEach((a) => block(a.date).assessments.push(a)); // quiz and presentation days are hidden while searching
   const blocks = [...byDate.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
-  let classNo = 0;
+  // Class numbers come from ALL topics, so "Class 4" stays "Class 4" while a search hides the other days.
+  const classOf = new Map([...new Set(topics.map((t) => toInputDate(t.scheduledDate)))].sort().map((k, i) => [k, i + 1]));
 
   return (
     <>
@@ -114,10 +120,16 @@ export default function Topics({ courseId, canEdit, outline }) {
         </form>
       )}
 
-      {!blocks.length && <div className="card muted">No topics yet.</div>}
+      {topics.length > 0 && (
+        <div className="card filters">
+          <input type="search" value={q} maxLength={100} placeholder="Search topics by name, description or file name..." aria-label="Search topics" onChange={(e) => setQ(e.target.value)} />
+          {needle && <span className="muted small">{shownTopics.length} of {topics.length} topics match “{q.trim()}”</span>}
+        </div>
+      )}
+      {!blocks.length && <div className="card muted">{needle ? `No topic matches “${q.trim()}”.` : 'No topics yet.'}</div>}
       {blocks.map((b) => {
         const hasTopics = b.topics.length > 0;
-        if (hasTopics) classNo += 1;
+        const classNo = classOf.get(b.key);
         const first = b.topics[0] || b.assessments[0];
         const dateValue = b.topics[0]?.scheduledDate || `${b.key}T00:00:00.000Z`;
         return (

@@ -10,6 +10,7 @@ import AttendanceTab from './course/AttendanceTab.jsx';
 import MarksTab from './course/MarksTab.jsx';
 import ProformaTab from './course/ProformaTab.jsx';
 import PerformanceTab from './course/PerformanceTab.jsx';
+import AssistantTab from './course/AssistantTab.jsx';
 import ClassList from './course/ClassList.jsx';
 import NumberedContents from '../components/NumberedContents.jsx';
 
@@ -42,6 +43,8 @@ export default function CourseWorkspace() {
   if (!isStudent) tabs.push(['proforma', 'Marks proforma']);
   if (!isStudent) tabs.push(['performance', 'Student support']);
   tabs.push(['about', 'Course contents']);
+  // The course assistant: students (and the principal / HODs) ask about the topics and notes of this course.
+  if (isStudent || ['hod', 'university_head'].includes(role)) tabs.push(['assistant', 'AI Assistant']);
 
   return (
     <>
@@ -63,6 +66,7 @@ export default function CourseWorkspace() {
           {tab === 'marks' && !isStudent && <MarksTab courseId={courseId} role={role} />}
           {tab === 'proforma' && !isStudent && <ProformaTab courseId={courseId} role={role} />}
           {tab === 'performance' && !isStudent && <PerformanceTab courseId={courseId} />}
+          {tab === 'assistant' && <AssistantTab courseId={courseId} />}
           {tab === 'about' && (
             <div className="card">
               <table className="mb">

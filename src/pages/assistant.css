@@ -1,19 +1,51 @@
-/* AI Assistant: ChatGPT-style layout. No horizontal scrolling on any screen size. */
-.as { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 1rem; height: calc(100vh - 110px); height: calc(100dvh - 110px); min-height: 460px; }
-.as-side { background: var(--card, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 14px; padding: .8rem; display: flex; flex-direction: column; gap: .6rem; min-height: 0; box-shadow: var(--shadow); }
-.as-new { margin: 0 !important; width: 100%; }
-.as-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: .2rem; min-height: 0; }
-.as-item { display: flex; align-items: center; gap: .4rem; padding: .5rem .55rem; border-radius: 10px; cursor: pointer; }
-.as-item:hover, .as-item.on { background: var(--primary-soft, #eef2ff); }
-.as-item .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .88rem; }
-.as-item button { border: 0; background: none; color: #94a3b8; cursor: pointer; padding: .1rem .25rem; opacity: 0; }
-.as-item:hover button, .as-item.on button { opacity: 1; }
-.as-item button:hover { color: var(--danger, #dc2626); }
+/* ==========================================================================================
+   AI Assistant (and Library Assistant) page: ChatGPT-style layout.
+     wide screen : history column on the left (280px) + chat on the right, both as tall as the window
+     phone/tablet: the chat uses the whole width and the history opens as a slide-in panel
+   The structure uses flexbox with explicit order, position and size (!important), so another stylesheet can never push the two boxes into
+   the wrong place (the old grid layout let the history box jump above the chat).
+   ========================================================================================== */
 
-.as-main { background: var(--card, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 14px; display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: .9rem 1rem .6rem; box-shadow: var(--shadow); }
-.as-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .6rem; }
-.as-head h2 { margin: 0; font-size: 1.15rem; }
-.as-hist { display: none; }
+.as {
+  display: flex !important; flex-direction: row !important; align-items: stretch !important; gap: 1rem;
+  width: 100%; max-width: 100%;
+  height: calc(100vh - 120px); height: calc(100dvh - 120px); min-height: 480px;
+}
+
+/* ---------- history column ---------- */
+.as > .as-side {
+  order: 1 !important; position: static !important; flex: 0 0 280px !important; width: 280px; max-width: 280px; min-width: 0;
+  transform: none !important; visibility: visible !important;
+  display: flex; flex-direction: column; gap: .6rem; min-height: 0;
+  background: var(--card, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 16px; padding: .85rem; box-shadow: var(--shadow);
+}
+.as-side-head { display: none; align-items: center; justify-content: space-between; gap: .5rem; font-size: 1rem; }
+.as-x { border: 0; background: none; font-size: 1.1rem; line-height: 1; cursor: pointer; color: inherit; padding: .35rem .55rem; border-radius: 8px; }
+.as-x:hover { background: var(--primary-soft, #eef2ff); }
+.as-new { margin: 0 !important; width: 100%; }
+.as-search { width: 100%; margin: 0; }
+.as-list { overflow-y: auto; flex: 1 1 auto; display: flex; flex-direction: column; gap: .2rem; min-height: 0; }
+.as-item { display: flex; align-items: center; gap: .45rem; padding: .55rem .6rem; border-radius: 10px; cursor: pointer; border: 1px solid transparent; }
+.as-item:hover { background: var(--primary-soft, #eef2ff); }
+.as-item.on { background: var(--primary-soft, #eef2ff); border-color: var(--primary-light, #818cf8); }
+.as-item .ico { flex-shrink: 0; width: 1.4rem; text-align: center; }
+.as-item .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .88rem; }
+.as-item button { border: 0; background: none; color: #94a3b8; cursor: pointer; padding: .15rem .3rem; opacity: 0; border-radius: 6px; }
+.as-item:hover button, .as-item.on button { opacity: 1; }
+.as-item button:hover { color: var(--danger, #dc2626); background: rgba(0, 0, 0, .05); }
+
+/* ---------- chat ---------- */
+.as > .as-main {
+  order: 2 !important; position: relative !important; flex: 1 1 0 !important; width: auto; min-width: 0 !important; max-width: none;
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--card, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 16px; padding: .95rem 1.1rem .7rem; box-shadow: var(--shadow);
+}
+.as-head { display: flex; align-items: center; gap: .7rem; margin-bottom: .7rem; padding-bottom: .7rem; border-bottom: 1px solid var(--border, #e2e8f0); }
+.as-head .grow { flex: 1; min-width: 0; }
+.as-head h2 { margin: 0; font-size: 1.2rem; }
+.as-sub { display: block; margin-top: .15rem; line-height: 1.35; overflow-wrap: anywhere; word-break: normal; writing-mode: horizontal-tb; }
+.as-hist, .as-newtop { display: none; }
+.as-hist span { margin-left: .25rem; }
 .as-modes { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
 .as-chip { border: 1px solid var(--border, #e2e8f0); background: #f8fafc; border-radius: 999px; padding: .3rem .75rem; font: inherit; font-size: .82rem; cursor: pointer; color: inherit; }
 .as-chip:hover { border-color: var(--primary-light, #6366f1); }
@@ -21,18 +53,18 @@
 .as-course { display: grid; gap: .25rem; margin-bottom: .6rem; }
 .as-course label { margin: 0; }
 
-.as-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; padding: .4rem .1rem; display: flex; flex-direction: column; gap: .9rem; }
-.as-empty { margin: auto; text-align: center; max-width: 560px; padding: 1rem; }
-.as-empty .big { font-size: 2.6rem; }
-.as-starters { display: grid; gap: .5rem; margin-top: .8rem; }
-.as-starters button { text-align: left; border: 1px solid var(--border, #e2e8f0); background: #f8fafc; border-radius: 12px; padding: .65rem .85rem; font: inherit; cursor: pointer; color: inherit; overflow-wrap: anywhere; }
-.as-starters button:hover { border-color: var(--primary-light, #6366f1); background: var(--primary-soft, #eef2ff); }
+.as-scroll { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; min-height: 0; padding: .4rem .15rem; display: flex; flex-direction: column; gap: .9rem; }
+.as-empty { margin: auto; text-align: center; max-width: 600px; width: 100%; padding: 1rem; }
+.as-empty .big { font-size: 2.8rem; }
+.as-starters { display: grid; gap: .5rem; margin-top: .9rem; }
+.as-starters button { text-align: left; border: 1px solid var(--border, #e2e8f0); background: #f8fafc; border-radius: 12px; padding: .7rem .9rem; font: inherit; cursor: pointer; color: inherit; overflow-wrap: anywhere; transition: border-color .15s, background .15s, transform .15s; }
+.as-starters button:hover { border-color: var(--primary-light, #6366f1); background: var(--primary-soft, #eef2ff); transform: translateY(-1px); }
 
 .as-msg { display: flex; gap: .6rem; align-items: flex-start; }
 .as-msg.user { flex-direction: row-reverse; }
-.as-av { width: 32px; height: 32px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center; font-weight: 700; background: var(--primary-soft, #eef2ff); }
+.as-av { width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px; display: grid; place-items: center; font-weight: 700; background: var(--primary-soft, #eef2ff); overflow: hidden; }
 .as-msg.user .as-av { background: linear-gradient(135deg, var(--primary, #4f46e5), var(--accent, #0d9488)); color: #fff; }
-.as-bubble { position: relative; max-width: min(760px, 88%); min-width: 0; background: #f8fafc; border: 1px solid var(--border, #e2e8f0); border-radius: 14px; padding: .65rem .9rem; overflow-wrap: anywhere; }
+.as-bubble { position: relative; max-width: min(780px, 88%); min-width: 0; background: #f8fafc; border: 1px solid var(--border, #e2e8f0); border-radius: 14px; padding: .7rem .95rem; overflow-wrap: anywhere; }
 .as-msg.user .as-bubble { background: var(--primary-soft, #eef2ff); }
 .as-user-text { margin: 0; white-space: pre-wrap; }
 .as-sources { margin-top: .5rem; font-size: .75rem; color: var(--muted, #64748b); }
@@ -42,12 +74,13 @@
 .as-dots i:nth-child(2) { animation-delay: .15s; } .as-dots i:nth-child(3) { animation-delay: .3s; }
 @keyframes as-b { 0%, 80%, 100% { transform: scale(.6); opacity: .5; } 40% { transform: scale(1); opacity: 1; } }
 
-.as-input { display: flex; gap: .5rem; align-items: flex-end; margin-top: .6rem; }
-.as-input textarea { resize: none; max-height: 180px; border-radius: 12px; }
-.as-input .btn { margin: 0 !important; height: 42px; }
-.as-note { margin: .4rem 0 0; font-size: .72rem; color: var(--muted, #64748b); text-align: center; }
+.as-input { display: flex; gap: .5rem; align-items: flex-end; margin-top: .7rem; }
+.as-input textarea { flex: 1; min-width: 0; resize: none; max-height: 180px; border-radius: 12px; }
+.as-input .btn { margin: 0 !important; height: 44px; }
+.as-send-ico { display: none; }
+.as-note { margin: .45rem 0 0; font-size: .72rem; color: var(--muted, #64748b); text-align: center; }
 
-/* Answer formatting */
+/* ---------- answer formatting ---------- */
 .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
 .md p { margin: .45rem 0; line-height: 1.55; }
 .md ul, .md ol { margin: .4rem 0; padding-left: 1.4rem; } .md li { margin: .15rem 0; }
@@ -59,7 +92,7 @@
 .md .md-table { overflow-x: auto; max-width: 100%; }
 .md table { border-collapse: collapse; font-size: .85rem; } .md th, .md td { border: 1px solid var(--border, #e2e8f0); padding: .3rem .55rem; }
 
-/* People found by a records search */
+/* ---------- people found by a records search ---------- */
 .as-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: .5rem; margin-top: .6rem; }
 .as-card { display: flex; align-items: center; gap: .55rem; text-align: left; border: 1px solid var(--border, #e2e8f0); background: #fff; border-radius: 12px; padding: .5rem .65rem; font: inherit; cursor: pointer; color: inherit; min-width: 0; }
 .as-card:hover { border-color: var(--primary-light, #6366f1); background: var(--primary-soft, #eef2ff); }
@@ -67,13 +100,32 @@
 .as-card b, .as-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .as-card small { color: var(--muted, #64748b); }
 
-/* Phone: history becomes a slide-in panel; the chat uses the full width */
-@media (max-width: 800px) {
-  .as { grid-template-columns: 1fr; height: calc(100dvh - 90px); }
-  .as-hist { display: inline-block; }
-  .as-side { position: fixed; z-index: 40; inset: 0 auto 0 0; width: min(300px, 86vw); border-radius: 0; transform: translateX(-102%); transition: transform .2s; }
-  .as-side.open { transform: none; }
-  .as-scrim { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); z-index: 30; }
+/* ==========================================================================================
+   Narrow windows and phones: chat full width, history = slide-in panel
+   ========================================================================================== */
+@media (max-width: 900px) {
+  .as { height: calc(100dvh - 96px); min-height: 420px; }
+  .as > .as-main { padding: .8rem .8rem .6rem; border-radius: 14px; }
+  .as-hist { display: inline-flex; align-items: center; flex-shrink: 0; }
+  .as-newtop { display: inline-flex; flex-shrink: 0; }
+  .as-head { flex-wrap: wrap; }
+  .as-head .grow { order: 3; flex-basis: 100%; }
+
+  /* above the app's own top bar and menu, below the confirm / rename dialogs */
+  .as > .as-side {
+    position: fixed !important; z-index: 900; top: 0; bottom: 0; left: 0; width: min(310px, 88vw); max-width: none; height: 100dvh; flex: none !important;
+    border-radius: 0 16px 16px 0; box-shadow: 0 0 30px rgba(15, 23, 42, .28);
+    padding-top: max(.85rem, env(safe-area-inset-top)); padding-bottom: max(.85rem, env(safe-area-inset-bottom));
+    transform: translateX(-105%) !important; visibility: hidden !important; transition: transform .22s ease, visibility 0s linear .22s;
+  }
+  .as > .as-side.open { transform: none !important; visibility: visible !important; transition: transform .22s ease; }
+  .as-side-head { display: flex; }
+  .as-scrim { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); z-index: 890; }
+
   .as-bubble { max-width: 100%; }
-  .as-item button { opacity: 1; }
+  .as-item { padding: .7rem .65rem; }
+  .as-item button { opacity: 1; padding: .3rem .5rem; }
+  .as-send-txt { display: none; }
+  .as-send-ico { display: inline; }
+  .as-input .btn { min-width: 46px; padding-left: .8rem; padding-right: .8rem; }
 }

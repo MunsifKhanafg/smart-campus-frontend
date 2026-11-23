@@ -68,7 +68,9 @@ export default function Assistant() {
     if (!drawer) return undefined;
     const onKey = (e) => e.key === 'Escape' && setDrawer(false);
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden'; // the page behind the sheet does not scroll
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
   }, [drawer]);
 
   const current = modes.find((m) => m.id === mode);
