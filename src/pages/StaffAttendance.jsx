@@ -29,6 +29,8 @@ const addMinutes = (hhmm, plus) => {
   return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
 };
 
+const AFTERNOON = { present: 'Marked', leave: 'Leave', missed: 'Missed' }; // the break-time attendance
+
 const STATE_TEXT = {
   not_open: 'Check-in has not opened yet',
   on_time: 'Check-in is open',
@@ -77,6 +79,7 @@ function MyDay({ ok, fail }) {
   const { user } = useSelector((s) => s.auth);
   // The finance officer and the library controller belong to no department, so there is no HOD: the principal corrects their attendance.
   const fixer = ['finance_officer', 'library_controller'].includes(user.role) ? 'the principal' : 'your HOD or the principal';
+  const approver = ['finance_officer', 'library_controller', 'hod'].includes(user.role) ? 'the principal' : 'your HOD'; // who decides leave for the rest of the day
   const [today, setToday] = useState(null);
   const [month, setMonth] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -106,6 +109,27 @@ function MyDay({ ok, fail }) {
   const checkOut = async () => {
     setBusy(true);
     try { const { data } = await api.post('/staff-attendance/check-out'); ok(data.message); load(); } catch (e) { fail(e); } finally { setBusy(false); }
+  };
+
+  const [early, setEarly] = useState({ time: '', reason: '' });
+  const markBreak = async () => {
+    setBusy(true);
+    try {
+      const pos = await getPosition();
+      const { data } = await api.post('/staff-attendance/midday-check-in', { ...(pos || {}) });
+      ok(data.message);
+      load();
+    } catch (e) { fail(e); } finally { setBusy(false); }
+  };
+  const askEarlyLeave = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { data } = await api.post('/staff-attendance/leaves', { kind: 'rest_of_day', fromDate: today.date, toDate: today.date, leaveTime: early.time || addMinutes('00:00', today.nowMinutes), reason: early.reason });
+      ok(data.message);
+      setEarly({ time: '', reason: '' });
+      load();
+    } catch (err) { fail(err); } finally { setBusy(false); }
   };
 
   if (!today) return <div className="card muted">Loading...</div>;
@@ -148,6 +172,36 @@ function MyDay({ ok, fail }) {
         {r && r.checkInAt && !r.checkOutAt && ['present', 'late'].includes(r.status) && (
           <div className="actions" style={{ marginTop: '.75rem' }}><button className="btn" disabled={busy} onClick={checkOut}>Check out</button></div>
         )}
+        {today.midday?.required && r && ['present', 'late'].includes(r.status) && (
+          <div className="card" style={{ marginTop: '.75rem', background: 'rgba(37, 99, 235, .06)' }}>
+            <b>Break-time attendance</b> <span className="muted small">({today.midday.opensAt} to {today.midday.closesAt}, from inside the college)</span>
+            {today.midday.state === 'done' && <p style={{ margin: '.4rem 0 0' }}>Marked at <b>{timeOf(today.midday.at, tz)}</b> {today.midday.onCampus === true && <span className="badge approved">On campus</span>}</p>}
+            {today.midday.state === 'leave' && <p style={{ margin: '.4rem 0 0' }}>Not needed: your leave for the rest of the day was approved.</p>}
+            {today.midday.state === 'missed' && <p style={{ margin: '.4rem 0 0' }}><span className="badge rejected">Missed</span> You did not mark it and had no approved leave. Ask {fixer} to correct it if this is wrong.</p>}
+            {today.midday.state === 'not_open' && <p className="muted" style={{ margin: '.4rem 0 0' }}>It opens at {today.midday.opensAt}. Stay at the college and mark it then. To leave earlier, ask for leave below and wait for the approval.</p>}
+            {today.midday.state === 'open' && (
+              <div className="actions" style={{ marginTop: '.5rem' }}>
+                <button className="btn btn-primary" disabled={busy} onClick={markBreak}>{busy ? 'Checking your location...' : 'Mark break-time attendance'}</button>
+                <span className="muted small">It must be marked from inside the college. Allow location access when asked.</span>
+              </div>
+            )}
+          </div>
+        )}
+        {today.restLeave?.status === 'pending' && <div className="alert alert-info" style={{ marginTop: '.75rem' }}>Waiting for {approver} to approve your leave at <b>{today.restLeave.leaveTime}</b>. Please stay at the college until it is approved.</div>}
+        {today.restLeave?.status === 'approved' && <div className="alert alert-info" style={{ marginTop: '.75rem' }}>Approved: you may leave the college at <b>{today.restLeave.leaveTime}</b>. The break-time attendance is not needed.</div>}
+        {today.restLeave?.status === 'rejected' && <div className="alert alert-error" style={{ marginTop: '.75rem' }}>Your request to leave at {today.restLeave.leaveTime} was not approved{today.restLeave.reviewNote ? `: ${today.restLeave.reviewNote}` : ''}. Please stay at the college.</div>}
+        {today.canLeaveEarly && (
+          <form onSubmit={askEarlyLeave} style={{ marginTop: '.75rem' }}>
+            <h4 style={{ marginBottom: 4 }}>Leave early</h4>
+            <p className="muted small">Need to leave for the rest of the day? Ask {approver} here. You must stay at the college until it is approved. Your remaining classes move to the next teaching day when it is.</p>
+            <div className="form-grid">
+              <div><label>Time you need to leave</label><input type="time" required value={early.time || addMinutes('00:00', today.nowMinutes)} onChange={(e) => setEarly({ ...early, time: e.target.value })} /></div>
+            </div>
+            <label>Reason</label>
+            <textarea rows={2} required minLength={3} maxLength={600} value={early.reason} onChange={(e) => setEarly({ ...early, reason: e.target.value })} />
+            <div className="actions"><button className="btn" disabled={busy}>Send to {approver}</button></div>
+          </form>
+        )}
         {r && ['absent', 'leave'].includes(r.status) && (
           <p className="muted small" style={{ marginTop: '.5rem' }}>
             {r.topicsMoved ? `${r.topicsMoved} course content(s) planned for today were moved to the next teaching day. ` : ''}
@@ -163,15 +217,15 @@ function MyDay({ ok, fail }) {
             Present <b>{month.counts.present || 0}</b> · Late <b>{month.counts.late || 0}</b> · Absent <b>{month.counts.absent || 0}</b> · Leave <b>{month.counts.leave || 0}</b>
           </p>
           <table>
-            <thead><tr><th>Date</th><th>Status</th><th>In</th><th>Out</th><th>Late (min)</th><th>Note</th></tr></thead>
+            <thead><tr><th>Date</th><th>Status</th><th>In</th><th>Out</th><th>Break</th><th>Late (min)</th><th>Note</th></tr></thead>
             <tbody>
               {month.records.map((x) => (
                 <tr key={x._id}>
-                  <td>{x.date}</td><td><Badge value={x.status} /></td><td>{timeOf(x.checkInAt, tz)}</td><td>{timeOf(x.checkOutAt, tz)}</td>
+                  <td>{x.date}</td><td><Badge value={x.status} /></td><td>{timeOf(x.checkInAt, tz)}</td><td>{timeOf(x.checkOutAt, tz)}</td><td>{AFTERNOON[x.afternoon] || ''}</td>
                   <td>{x.minutesLate || ''}</td><td>{x.note}{x.auto ? ' (system)' : ''}</td>
                 </tr>
               ))}
-              {!month.records.length && <tr><td colSpan={6} className="muted">No attendance recorded this month yet.</td></tr>}
+              {!month.records.length && <tr><td colSpan={7} className="muted">No attendance recorded this month yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -229,7 +283,7 @@ function MyLeave({ ok, fail }) {
           <tbody>
             {leaves.map((l) => (
               <tr key={l._id}>
-                <td>{l.fromDate}</td><td>{l.toDate}</td><td>{label(l.type)}</td><td>{l.reason}</td><td><Badge value={l.status} /></td>
+                <td>{l.fromDate}</td><td>{l.kind === 'rest_of_day' ? `from ${l.leaveTime}` : l.toDate}</td><td>{label(l.type)}</td><td>{l.reason}</td><td><Badge value={l.status} /></td>
                 <td>{l.reviewedBy?.name ? `${l.reviewedBy.name}${l.reviewNote ? `: ${l.reviewNote}` : ''}` : ''}</td>
                 <td className="actions">{['pending', 'approved'].includes(l.status) && <button className="btn btn-small" onClick={() => cancel(l)}>Cancel</button>}</td>
               </tr>
@@ -265,7 +319,7 @@ function Team({ ok, fail, isHead }) {
   const save = async (e) => {
     e.preventDefault();
     try {
-      const { data: res } = await api.put('/staff-attendance/mark', { user: fix.user._id, date, status: fix.status, note: fix.note });
+      const { data: res } = await api.put('/staff-attendance/mark', { user: fix.user._id, date, status: fix.status, note: fix.note, ...(fix.afternoon ? { afternoon: fix.afternoon } : {}) });
       ok(res.message || 'Saved');
       setFix(null);
       load();
@@ -310,6 +364,13 @@ function Team({ ok, fail, isHead }) {
           </div>
           <label>Reason for the correction</label>
           <input required minLength={3} maxLength={300} value={fix.note} onChange={(e) => setFix({ ...fix, note: e.target.value })} />
+          <label>Break-time attendance (optional)</label>
+          <select value={fix.afternoon || ''} onChange={(e) => setFix({ ...fix, afternoon: e.target.value })}>
+            <option value="">Leave as it is</option>
+            <option value="present">Was at the college at the break</option>
+            <option value="leave">Had leave for the rest of the day</option>
+            <option value="missed">Missed</option>
+          </select>
           <p className="muted small">Marking absent or leave moves the course contents planned for that day to the next teaching day. The teacher is notified.</p>
           <div className="actions">
             <button className="btn btn-primary">Save</button>
@@ -320,7 +381,7 @@ function Team({ ok, fail, isHead }) {
 
       <div className="card table-wrap">
         <table>
-          <thead><tr><th>Staff</th>{isHead && <th>Department</th>}<th>Status</th><th>In</th><th>Out</th><th>Proof</th><th>Note</th><th /></tr></thead>
+          <thead><tr><th>Staff</th>{isHead && <th>Department</th>}<th>Status</th><th>In</th><th>Out</th><th>Break</th><th>Proof</th><th>Note</th><th /></tr></thead>
           <tbody>
             {data?.rows.map((r) => (
               <tr key={r.user._id}>
@@ -329,18 +390,23 @@ function Team({ ok, fail, isHead }) {
                 <td><Badge value={r.status} />{r.minutesLate ? <div className="muted small">{r.minutesLate} min late</div> : null}</td>
                 <td>{timeOf(r.checkInAt)}</td><td>{timeOf(r.checkOutAt)}</td>
                 <td>
+                  {r.afternoon === 'present' && <>Marked {timeOf(r.middayAt)} {r.middayOnCampus === false && <span className="badge rejected">Outside</span>}</>}
+                  {r.afternoon === 'leave' && <span className="badge pending">Leave</span>}
+                  {r.afternoon === 'missed' && <span className="badge rejected">Missed</span>}
+                </td>
+                <td>
                   {r.onCampus === true && <span className="badge approved">On campus{r.distanceMeters != null ? ` (${r.distanceMeters} m)` : ''}</span>}
                   {r.onCampus === false && <span className="badge rejected">Outside{r.distanceMeters != null ? ` (${r.distanceMeters} m)` : ''}</span>}
                   {r.onCampus == null && r.checkInAt && <span className="muted small">not checked</span>}
                 </td>
                 <td>{r.note}{r.auto ? ' (system)' : ''}{r.topicsMoved ? ` · ${r.topicsMoved} content(s) moved` : ''}</td>
                 <td className="actions">
-                  <button className="btn btn-small" onClick={() => setFix({ user: r.user, status: r.status === 'not_marked' ? 'present' : r.status, note: '' })}>Correct</button>
+                  <button className="btn btn-small" onClick={() => setFix({ user: r.user, status: r.status === 'not_marked' ? 'present' : r.status, note: '', afternoon: '' })}>Correct</button>
                   {['absent', 'leave'].includes(r.status) && <button className="btn btn-small" onClick={() => move(r.user)}>Move contents</button>}
                 </td>
               </tr>
             ))}
-            {data && !data.rows.length && <tr><td colSpan={8} className="muted">No teachers found.</td></tr>}
+            {data && !data.rows.length && <tr><td colSpan={9} className="muted">No teachers found.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -384,7 +450,7 @@ function Requests({ ok, fail }) {
           <tbody>
             {list.map((l) => (
               <tr key={l._id}>
-                <td>{l.user?.name}</td><td>{fmtDate(`${l.fromDate}T00:00:00Z`)}</td><td>{fmtDate(`${l.toDate}T00:00:00Z`)}</td><td>{label(l.type)}</td><td>{l.reason}</td>
+                <td>{l.user?.name}</td>{l.kind === 'rest_of_day' ? <td colSpan={2}>Today, the rest of the day from <b>{l.leaveTime}</b></td> : <><td>{fmtDate(`${l.fromDate}T00:00:00Z`)}</td><td>{fmtDate(`${l.toDate}T00:00:00Z`)}</td></>}<td>{label(l.type)}</td><td>{l.reason}</td>
                 <td><Badge value={l.status} /></td>
                 <td>
                   {l.status === 'pending' ? (
@@ -416,14 +482,14 @@ function MonthSummary({ fail }) {
       <div className="card filters"><div><label>Month</label><input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} /></div></div>
       <div className="card table-wrap">
         <table>
-          <thead><tr><th>Teacher</th><th>Department</th><th>Present</th><th>Late</th><th>Minutes late</th><th>Absent</th><th>Leave</th></tr></thead>
+          <thead><tr><th>Teacher</th><th>Department</th><th>Present</th><th>Late</th><th>Minutes late</th><th>Absent</th><th>Leave</th><th>Missed break</th></tr></thead>
           <tbody>
             {data?.rows.map((r) => (
               <tr key={r.user._id}>
-                <td>{r.user.name}</td><td>{r.user.department?.code || (r.user.role === 'finance_officer' ? 'Finance office' : r.user.role === 'library_controller' ? 'Library' : 'All')}</td><td>{r.present}</td><td>{r.late}</td><td>{r.minutesLate}</td><td>{r.absent}</td><td>{r.leave}</td>
+                <td>{r.user.name}</td><td>{r.user.department?.code || (r.user.role === 'finance_officer' ? 'Finance office' : r.user.role === 'library_controller' ? 'Library' : 'All')}</td><td>{r.present}</td><td>{r.late}</td><td>{r.minutesLate}</td><td>{r.absent}</td><td>{r.leave}</td><td>{r.missedBreak || 0}</td>
               </tr>
             ))}
-            {data && !data.rows.length && <tr><td colSpan={7} className="muted">No teachers found.</td></tr>}
+            {data && !data.rows.length && <tr><td colSpan={8} className="muted">No teachers found.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -448,6 +514,7 @@ function Rules({ ok, fail }) {
     try {
       const body = {
         timezone: f.timezone, opensAt: f.opensAt, graceMinutes: Number(f.graceMinutes), absentAfter: f.absentAfter, closesAt: f.closesAt,
+        middayRequired: !!f.middayRequired, middayOpensAt: f.middayOpensAt,
         requireOnCampus: f.requireOnCampus, maxAccuracyMeters: Number(f.maxAccuracyMeters),
         campus: { lat: num(f.campus.lat), lng: num(f.campus.lng), radiusMeters: Number(f.campus.radiusMeters) },
       };
@@ -464,9 +531,15 @@ function Rules({ ok, fail }) {
         <div><label>Check-in opens (college starts)</label><input type="time" required value={f.opensAt} onChange={(e) => setF({ ...f, opensAt: e.target.value })} /></div>
         <div><label>Grace (minutes after the start)</label><input type="number" min={0} max={240} required value={f.graceMinutes} onChange={(e) => setF({ ...f, graceMinutes: e.target.value })} /></div>
         <div><label>Marked absent if not checked in by</label><input type="time" required value={f.absentAfter} onChange={(e) => setF({ ...f, absentAfter: e.target.value })} /></div>
-        <div><label>Check-out possible until</label><input type="time" required value={f.closesAt} onChange={(e) => setF({ ...f, closesAt: e.target.value })} /></div>
+        <div><label>Break-time attendance opens</label><input type="time" required value={f.middayOpensAt} onChange={(e) => setF({ ...f, middayOpensAt: e.target.value })} /></div>
+        <div><label>Break-time attendance closes</label><input type="time" required value={f.closesAt} onChange={(e) => setF({ ...f, closesAt: e.target.value })} /></div>
         <div><label>Time zone</label><input required value={f.timezone} onChange={(e) => setF({ ...f, timezone: e.target.value })} /></div>
       </div>
+
+      <label style={{ display: 'flex', gap: '.5rem', alignItems: 'center', fontWeight: 400, marginTop: '.75rem' }}>
+        <input type="checkbox" style={{ width: 'auto' }} checked={!!f.middayRequired} onChange={(e) => setF({ ...f, middayRequired: e.target.checked })} />
+        Staff must mark attendance again at the break (inside the college). Anyone who checked in but does not, and has no approved leave for the rest of the day, is flagged "missed".
+      </label>
 
       <h3 style={{ marginTop: '1rem' }}>Proof that the teacher is on campus</h3>
       <label style={{ display: 'flex', gap: '.5rem', alignItems: 'center', fontWeight: 400 }}>
